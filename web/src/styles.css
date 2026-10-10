@@ -34,6 +34,7 @@ body {
   max-width: 640px;
   margin: 0 auto;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
 
@@ -60,8 +61,18 @@ body {
   padding: 12px 20px;
 }
 
+.header span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.header .muted {
+  flex: 1 1 0;
+}
+
 .header button {
   margin-left: auto;
+  flex-shrink: 0;
 }
 
 h1,
@@ -121,6 +132,15 @@ input {
   gap: 12px;
   padding: 8px 0;
   border-bottom: 1px solid var(--border);
+}
+
+.notes li span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.notes time {
+  flex-shrink: 0;
 }
 
 .muted {
