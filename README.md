@@ -86,6 +86,10 @@ cards, review chips fill in as verdicts land, and jobs that need you stand out.
 Click a card to read its markdown files. It polls every two seconds, so leave it
 open while jobs run.
 
+In this repo, `make dashboard` does the same from the repo root (bound to
+127.0.0.1; pick another port with `make dashboard DASHBOARD_PORT=8090`), and
+`make help` lists the other targets.
+
 ## The example jobs
 
 Both came from running the factory on [zazencodes.com](https://zazencodes.com),
