@@ -89,7 +89,9 @@ open while jobs run.
 In this repo, `make dashboard` does the same from the repo root (bound to
 127.0.0.1; pick another port with `make dashboard DASHBOARD_PORT=8090`).
 `make web` starts the web dev server, `make web-build` makes a production build
-of `web/`, and `make help` lists the other targets.
+of `web/`, and `make help` lists the other targets. `make sandbox-up` runs the
+demo app's full stack (Keycloak, API, BFF and web) in containers under Podman;
+see AGENTS.md.
 
 ## The example jobs
 

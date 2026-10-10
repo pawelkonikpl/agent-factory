@@ -8,6 +8,7 @@ OAuth/OIDC Backend-for-Frontend demo plus the software factory that builds on it
 - `api/`: FastAPI resource server (notes per user), verifies JWTs from Keycloak. Python, uv.
 - `web/`: Vite + React + TypeScript SPA. UI copy is Polish. The Vite dev server serves it in development, and `npm run build` writes a static bundle to `web/dist/` for a separate static host that shares its origin with the BFF (proxying `/bff` and `/api`), since `bff/` and `api/` serve no frontend files. The SPA talks to the backend only through `/bff/*` (session) and `/api/*` (the BFF proxy).
 - `keycloak/`: dev-only Keycloak (`docker-compose.yml`) and the `demo` realm (`realm-demo.json`).
+- `compose.yaml` (root): the dev-only sandbox that runs the whole stack in containers, built from the `Containerfile` in each of `api/`, `bff/` and `web/`.
 - `.claude/`, `factory/`: the software factory (skill, agents, dashboard, backlog). See README.md.
 
 ## Setup (fresh checkout)
@@ -27,18 +28,25 @@ cd web && npm install
 Each command in its own terminal, from the repo root:
 
 ```bash
-docker compose -f keycloak/docker-compose.yml up -d                  # Keycloak, port 8080 (admin/admin)
+podman compose -f keycloak/docker-compose.yml up -d                  # Keycloak, port 8080 (admin/admin)
 cd api && uv run uvicorn app.main:create_app --factory --port 8001    # API, port 8001
 cd bff && uv run uvicorn app.main:create_app --factory --port 8000    # BFF, port 8000
 cd web && npm run dev                                                 # web, port 5173
 ```
 
+Docker works too: `docker compose -f keycloak/docker-compose.yml up -d` or
+`make docker-up CONTAINER_ENGINE=docker`.
+
 Open http://localhost:5173. Demo users `alice`/`alice` and `bob`/`bob` (dev only).
 
 The root `Makefile` wraps these: `make docker-up` (also `docker-down`,
-`docker-logs`), `make backend` (API and BFF in one terminal, Ctrl-C stops both),
-`make web` (web dev server, port 5173), `make web-build` (runs `npm run build`
-in `web/`) and `make dashboard`. `make help` lists every target.
+`docker-logs`; Keycloak only), `make backend` (API and BFF in one terminal,
+Ctrl-C stops both), `make web` (web dev server, port 5173), `make web-build`
+(runs `npm run build` in `web/`) and `make dashboard`. `make sandbox-up` (also
+`sandbox-down`, `sandbox-logs`) runs the whole stack in containers, see
+"Sandbox". The `docker-*` and `sandbox-*` targets run through
+`CONTAINER_ENGINE` (default `podman`; `CONTAINER_ENGINE=docker` for Docker).
+`make help` lists every target.
 
 - To look at pages, the web dev server can run on another port:
   `cd web && npm run dev -- --port <port>`. Signing in only works on 5173, the
@@ -48,6 +56,29 @@ in `web/`) and `make dashboard`. `make help` lists every target.
   to port 8000 and collides with the BFF. While the BFF runs, serve it on
   another port: `make dashboard DASHBOARD_PORT=8090` or
   `cd factory && python3 -m http.server 8090` (or any free port).
+
+## Sandbox
+
+The root `compose.yaml` runs Keycloak, the API, the BFF and the web dev server
+in containers. It needs Podman with a compose provider (`podman compose`
+delegates to docker-compose or podman-compose); on macOS run
+`podman machine start` first.
+
+```bash
+make sandbox-up      # build the images and start all four services
+make sandbox-logs    # follow the logs until Ctrl-C
+make sandbox-down    # stop and remove the containers
+```
+
+- Open http://localhost:5173. Keycloak is on http://localhost:8080. Both bind to
+  127.0.0.1 only. The BFF (8000) and the API (8001) are not published.
+- It uses the `.env.example` values, not `bff/.env` or `api/.env`.
+- The source is baked into the images, with no live reload: after a code change
+  run `make sandbox-up` again to rebuild.
+- Keycloak takes a while to start, so the first login may fail until it is up.
+  Watch `make sandbox-logs`.
+- It cannot run at the same time as the host-run Keycloak (`make docker-up`) or
+  `npm run dev` (`make web`) on 5173: they use the same ports.
 
 ## Validation
 
