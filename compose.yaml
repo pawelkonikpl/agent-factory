@@ -1,0 +1,41 @@
+# Full-stack sandbox for local development only: Keycloak in dev mode, in-memory database,
+# demo passwords and secrets (the .env.example values).
+#
+# api, bff and web join keycloak's network namespace, so every service reaches the others
+# on localhost, just like the browser does, and the issuer and redirect URI stay valid.
+# keycloak therefore publishes all the ports; the BFF (8000) and the API (8001) stay internal.
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.5
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    ports:
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:5173:5173"
+    volumes:
+      - ./keycloak/realm-demo.json:/opt/keycloak/data/import/realm-demo.json:ro
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Containerfile
+    env_file: ./api/.env.example
+    network_mode: "service:keycloak"
+    depends_on: [keycloak]
+
+  bff:
+    build:
+      context: ./bff
+      dockerfile: Containerfile
+    env_file: ./bff/.env.example
+    network_mode: "service:keycloak"
+    depends_on: [keycloak]
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Containerfile
+    network_mode: "service:keycloak"
+    depends_on: [keycloak]

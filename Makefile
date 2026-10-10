@@ -1,9 +1,11 @@
 # Dev shortcuts. Run from the repo root. Works with GNU Make 3.81 (macOS).
 
 DASHBOARD_PORT ?= 8000
-COMPOSE = docker compose -f keycloak/docker-compose.yml
+CONTAINER_ENGINE ?= podman
+COMPOSE = $(CONTAINER_ENGINE) compose -f keycloak/docker-compose.yml
+SANDBOX = $(CONTAINER_ENGINE) compose -f compose.yaml
 
-.PHONY: help dashboard backend web web-build docker-up docker-down docker-logs
+.PHONY: help dashboard backend web web-build docker-up docker-down docker-logs sandbox-up sandbox-down sandbox-logs
 
 help: ## List the targets
 	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-12s %s\n", $$1, $$2}'
@@ -28,11 +30,21 @@ web: ## Start the web dev server on port 5173 until Ctrl-C
 web-build: ## Build the web app (type check plus production build into web/dist/)
 	cd web && npm run build
 
-docker-up: ## Start Keycloak (port 8080) in the background
+docker-up: ## Start Keycloak (port 8080) in the background (CONTAINER_ENGINE, default podman)
 	$(COMPOSE) up -d
 
-docker-down: ## Stop and remove the Docker services
+docker-down: ## Stop and remove Keycloak (CONTAINER_ENGINE, default podman)
 	$(COMPOSE) down
 
-docker-logs: ## Follow the Docker services' logs until Ctrl-C
+docker-logs: ## Follow Keycloak's logs until Ctrl-C (CONTAINER_ENGINE, default podman)
 	$(COMPOSE) logs -f
+
+sandbox-up: ## Build and start the full stack in containers (compose.yaml), web on port 5173
+	$(SANDBOX) up -d --build
+	@echo "Sandbox: http://localhost:5173"
+
+sandbox-down: ## Stop and remove the sandbox containers
+	$(SANDBOX) down
+
+sandbox-logs: ## Follow the sandbox services' logs until Ctrl-C
+	$(SANDBOX) logs -f
