@@ -3,7 +3,7 @@
 DASHBOARD_PORT ?= 8000
 COMPOSE = docker compose -f keycloak/docker-compose.yml
 
-.PHONY: help dashboard backend docker-up docker-down docker-logs
+.PHONY: help dashboard backend web web-build docker-up docker-down docker-logs
 
 help: ## List the targets
 	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-12s %s\n", $$1, $$2}'
@@ -21,6 +21,12 @@ backend: ## Run the API (port 8001) and the BFF (port 8000); Ctrl-C stops both
 	trap 'kill $$api $$bff 2>/dev/null' INT TERM; \
 	while kill -0 $$api 2>/dev/null && kill -0 $$bff 2>/dev/null; do sleep 1; done; \
 	kill $$api $$bff 2>/dev/null; wait; exit 1
+
+web: ## Start the web dev server on port 5173 until Ctrl-C
+	cd web && npm run dev
+
+web-build: ## Build the web app (type check plus production build into web/dist/)
+	cd web && npm run build
 
 docker-up: ## Start Keycloak (port 8080) in the background
 	$(COMPOSE) up -d
