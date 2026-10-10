@@ -87,8 +87,9 @@ Click a card to read its markdown files. It polls every two seconds, so leave it
 open while jobs run.
 
 In this repo, `make dashboard` does the same from the repo root (bound to
-127.0.0.1; pick another port with `make dashboard DASHBOARD_PORT=8090`), and
-`make help` lists the other targets.
+127.0.0.1; pick another port with `make dashboard DASHBOARD_PORT=8090`).
+`make web` starts the web dev server, `make web-build` makes a production build
+of `web/`, and `make help` lists the other targets.
 
 ## The example jobs
 

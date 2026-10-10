@@ -36,8 +36,9 @@ cd web && npm run dev                                                 # web, por
 Open http://localhost:5173. Demo users `alice`/`alice` and `bob`/`bob` (dev only).
 
 The root `Makefile` wraps these: `make docker-up` (also `docker-down`,
-`docker-logs`), `make backend` (API and BFF in one terminal, Ctrl-C stops both)
-and `make dashboard`. `make help` lists every target.
+`docker-logs`), `make backend` (API and BFF in one terminal, Ctrl-C stops both),
+`make web` (web dev server, port 5173), `make web-build` (runs `npm run build`
+in `web/`) and `make dashboard`. `make help` lists every target.
 
 - To look at pages, the web dev server can run on another port:
   `cd web && npm run dev -- --port <port>`. Signing in only works on 5173, the
