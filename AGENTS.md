@@ -6,7 +6,7 @@ OAuth/OIDC Backend-for-Frontend demo plus the software factory that builds on it
 
 - `bff/`: FastAPI Backend-for-Frontend, the OAuth confidential client (login, logout, CSRF, sessions, `/api` proxy). Python, uv.
 - `api/`: FastAPI resource server (notes per user), verifies JWTs from Keycloak. Python, uv.
-- `web/`: Vite + React + TypeScript SPA. UI copy is Polish.
+- `web/`: Vite + React + TypeScript SPA. UI copy is Polish. The Vite dev server serves it in development, and `npm run build` writes a static bundle to `web/dist/` for a separate static host that shares its origin with the BFF (proxying `/bff` and `/api`), since `bff/` and `api/` serve no frontend files. The SPA talks to the backend only through `/bff/*` (session) and `/api/*` (the BFF proxy).
 - `keycloak/`: dev-only Keycloak (`docker-compose.yml`) and the `demo` realm (`realm-demo.json`).
 - `.claude/`, `factory/`: the software factory (skill, agents, dashboard, backlog). See README.md.
 
