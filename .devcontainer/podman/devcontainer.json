@@ -1,0 +1,21 @@
+// The dev container from ../devcontainer.json for Podman. Keep the two in sync.
+{
+  "name": "OAuth BFF demo (Podman)",
+  "dockerComposeFile": ["../compose.yaml", "compose.yaml"],
+  "service": "dev",
+  "workspaceFolder": "/workspace",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "22" }
+  },
+  "remoteUser": "vscode",
+  // compose.yaml already maps the host user to vscode (UID 1000).
+  "updateRemoteUserUID": false,
+  // The redirect URI and the issuer are fixed to these localhost ports, so the
+  // client must fail rather than forward them to other ports.
+  "forwardPorts": [5173, 8080],
+  "portsAttributes": {
+    "5173": { "label": "web", "requireLocalPort": true },
+    "8080": { "label": "Keycloak", "requireLocalPort": true }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh"
+}
