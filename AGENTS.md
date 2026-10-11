@@ -85,22 +85,30 @@ make sandbox-down    # stop and remove the containers
 
 `.devcontainer/` is a coding environment with Python 3.12, uv, Node 22, git and
 make. Keycloak runs as a second container that shares its network, so
-`localhost:8080` inside it is Keycloak. It needs Docker and a Dev Containers
-client, such as VS Code with the Dev Containers extension ("Dev Containers: Reopen
-in Container").
+`localhost:8080` inside it is Keycloak. It needs Docker or Podman and a Dev
+Containers client, such as VS Code with the Dev Containers extension ("Dev
+Containers: Reopen in Container"). VS Code asks which configuration to use: "OAuth
+BFF demo" for Docker, "OAuth BFF demo (Podman)" for Podman.
+
+Inside the container, each command in its own terminal:
 
 ```bash
-make backend    # inside the container: API and BFF
-make web        # inside the container: web dev server, port 5173
+make backend    # API and BFF
+make web        # web dev server, port 5173
 ```
 
 - Setup runs automatically when the container is created: `.env` is copied from
   `.env.example` where it is missing, then `uv sync --frozen` and `npm ci`.
 - Open http://localhost:5173. The client forwards 5173 and 8080 to the host. Demo
   users and the validation commands are the same as on the host.
-- `npx @devcontainers/cli up --workspace-folder .` also builds and starts it. That
-  CLI doesn't forward ports, so it's good for tests but not for signing in from a
-  host browser.
+- Podman: set the VS Code setting `dev.containers.dockerPath` to `podman`.
+  `.devcontainer/podman/` maps your user to `vscode` (`keep-id`), so the container
+  can write the checkout under rootless Podman. `podman compose` needs
+  docker-compose or podman-compose 1.2 or newer.
+- `npx @devcontainers/cli up --workspace-folder .` also builds and starts it; for
+  Podman add `--docker-path podman --config .devcontainer/podman/devcontainer.json`.
+  That CLI doesn't forward ports, so it's good for tests but not for signing in
+  from a host browser.
 - It cannot run at the same time as the sandbox, the host-run Keycloak
   (`make docker-up`) or host `make web`: they use the same ports.
 - `.venv` and `node_modules` live in the bind-mounted checkout and are shared with
@@ -110,8 +118,8 @@ make web        # inside the container: web dev server, port 5173
   `make sandbox-*` targets don't work there.
 - Keycloak takes a while to start on first use, so the first login may fail until
   it is up.
-- `.devcontainer/devcontainer-lock.json` pins the Node feature version. Commit it
-  when the client updates it.
+- `devcontainer-lock.json`, in `.devcontainer/` and in `.devcontainer/podman/`,
+  pins the Node feature version. Commit it when the client updates it.
 
 ## Validation
 
