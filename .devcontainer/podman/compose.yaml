@@ -1,0 +1,18 @@
+# Podman additions to ../compose.yaml, for podman/devcontainer.json.
+#
+# Rootless Podman maps the host user to root in the container, so vscode could not
+# write the bind-mounted checkout: keep-id maps the host user to vscode (UID 1000)
+# instead. label=disable lets both containers read their bind mounts on SELinux
+# hosts, as the devcontainer CLI does for Podman.
+
+# podman-compose puts the services in a pod by default, and a pod can't take keep-id.
+x-podman:
+  in_pod: false
+
+services:
+  keycloak:
+    security_opt: ["label=disable"]
+
+  dev:
+    userns_mode: "keep-id:uid=1000,gid=1000"
+    security_opt: ["label=disable"]
