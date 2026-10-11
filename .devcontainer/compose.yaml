@@ -1,0 +1,26 @@
+# Dev container for coding on the demo app (devcontainer.json). Development only:
+# Keycloak in dev mode, in-memory database, demo passwords.
+#
+# dev joins keycloak's network namespace, like the sandbox (../compose.yaml), so
+# localhost:8080 is Keycloak inside the container, just as it is for the browser.
+# Nothing is published: the Dev Containers client forwards 5173 and 8080 to the host.
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.5
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    volumes:
+      - ../keycloak/realm-demo.json:/opt/keycloak/data/import/realm-demo.json:ro
+
+  dev:
+    # The context is this folder only, so no .env file can end up in the image.
+    build:
+      context: .
+      dockerfile: Containerfile
+    network_mode: "service:keycloak"
+    depends_on: [keycloak]
+    command: sleep infinity
+    volumes:
+      - ..:/workspace
