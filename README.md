@@ -30,6 +30,7 @@ yours.
 factory/
   backlog.md                     queue for /factory next
   dashboard.html                 the visual board
+  serve.py                       serves the dashboard, takes its Approve / Rework requests
   jobs/                          one folder per job (two examples included)
 BUILD_PROMPT.md                  the prompt that built the original factory
 ```
@@ -78,16 +79,30 @@ should always escalate.
 ## Dashboard
 
 ```bash
-cd factory && python3 -m http.server
+python3 factory/serve.py            # from the repo root; --port 8090 for another port
 ```
 
-Open <http://localhost:8000/dashboard.html>. Jobs move across the stages as
+Open <http://127.0.0.1:8000/dashboard.html>. Jobs move across the stages as
 cards, review chips fill in as verdicts land, and jobs that need you stand out.
 Click a card to read its markdown files. It polls every two seconds, so leave it
 open while jobs run.
 
-In this repo, `make dashboard` does the same from the repo root (bound to
-127.0.0.1; pick another port with `make dashboard DASHBOARD_PORT=8090`).
+A card in **Needs human** has **Approve** and **Rework** buttons. Approve asks
+for confirmation; Rework opens a note field for the builder. Either one writes
+`factory/jobs/<job-id>/human-request.json`, and the card then shows the request
+as sent. The orchestrator session waiting on that job picks the file up, deletes
+it, and runs `/factory approve` or `/factory rework` for you. The server never
+merges, runs git or touches `job.json`. Typing the commands still works.
+
+`serve.py` uses only the Python standard library and serves `factory/` like
+`http.server`. It listens on 127.0.0.1 only. A request is accepted only with an
+`Origin` of `http://127.0.0.1:<port>` or `http://localhost:<port>` and the
+token the server generates at each start and puts into the dashboard page, so
+other websites can't make it write anything. It refuses a second request while
+one is waiting.
+
+In this repo, `make dashboard` runs it from the repo root (pick another port
+with `make dashboard DASHBOARD_PORT=8090`).
 `make web` starts the web dev server, `make web-build` makes a production build
 of `web/`, and `make help` lists the other targets. `make sandbox-up` runs the
 demo app's full stack (Keycloak, API, BFF and web) in containers under Podman;

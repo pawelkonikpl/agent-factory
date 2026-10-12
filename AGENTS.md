@@ -10,7 +10,7 @@ OAuth/OIDC Backend-for-Frontend demo plus the software factory that builds on it
 - `keycloak/`: dev-only Keycloak (`docker-compose.yml`) and the `demo` realm (`realm-demo.json`).
 - `compose.yaml` (root): the dev-only sandbox that runs the whole stack in containers, built from the `Containerfile` in each of `api/`, `bff/` and `web/`.
 - `.devcontainer/`: dev-only coding environment (dev container plus Keycloak), see "Dev container".
-- `.claude/`, `factory/`: the software factory (skill, agents, dashboard, backlog). See README.md.
+- `.claude/`, `factory/`: the software factory (skill, agents, dashboard served by `factory/serve.py`, backlog). See README.md.
 
 ## Setup (fresh checkout)
 
@@ -53,10 +53,10 @@ Ctrl-C stops both), `make web` (web dev server, port 5173), `make web-build`
   `cd web && npm run dev -- --port <port>`. Signing in only works on 5173, the
   redirect URI registered in `keycloak/realm-demo.json`. The page needs the BFF on
   8000 (the Vite proxy target) to get past "checking session".
-- The factory dashboard (`make dashboard` or `python3 -m http.server`) defaults
+- The factory dashboard (`make dashboard` or `python3 factory/serve.py`) defaults
   to port 8000 and collides with the BFF. While the BFF runs, serve it on
   another port: `make dashboard DASHBOARD_PORT=8090` or
-  `cd factory && python3 -m http.server 8090` (or any free port).
+  `python3 factory/serve.py --port 8090` (or any free port).
 
 ## Sandbox
 
