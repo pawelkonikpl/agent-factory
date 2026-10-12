@@ -35,6 +35,9 @@ the approver escalates it.
   proxy). The backend is API-only and serves no frontend files.
 - Everything here is for development. Demo users, demo secrets and the dev
   Keycloak realm live in git; real secrets only ever go in ignored `.env` files.
+- Everything the repo starts listens on 127.0.0.1 only: dev servers, the
+  dashboard and published container ports. Demo credentials are in git, so
+  nothing may be reachable from the local network.
 - The stack runs three ways: on the host, in the sandbox and in the dev
   container. A change to how it runs keeps all three working and documented in
   `AGENTS.md`.

@@ -37,7 +37,11 @@ AGENTS.md in the worktree, in the background, on your port.
 Then use the `agent-browser` CLI (run `agent-browser skills get core` first) to
 screenshot the page at desktop and phone widths. Pass `--session <job-id>-ui` on
 every `agent-browser` call, so other jobs' reviewers never drive your browser.
-Don't sign in or submit forms. When you're done, run
+Don't sign in, and submit forms only when their request is stubbed. When the
+change shows only to a signed-in user or after a failed request, stub the
+requests the page makes with `agent-browser network route` (AGENTS.md may give
+the responses) and screenshot it that way. Review from the code alone only when
+you can't make the page show the change, and say so in Notes. When you're done, run
 `agent-browser --session <job-id>-ui close` and stop the dev server.
 
 ## What to look for

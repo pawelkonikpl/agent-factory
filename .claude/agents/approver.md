@@ -66,4 +66,7 @@ Only when you escalate: the exact decision or check you need from them, and the
 files to look at.
 ```
 
-The first line must be exactly `APPROVE` or `ESCALATE`.
+The first line must be exactly `APPROVE` or `ESCALATE`, and it is the decision:
+the orchestrator reads only that line and merges on `APPROVE`. If any ESCALATE
+condition above holds, write `ESCALATE`, however clean the build is. `## Why`
+and `## For the human` must agree with the first line.

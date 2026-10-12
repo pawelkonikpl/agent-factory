@@ -54,6 +54,14 @@ Ctrl-C stops both), `make web` (web dev server, port 5173), `make web-build`
   `cd web && npm run dev -- --port <port>`. Signing in only works on 5173, the
   redirect URI registered in `keycloak/realm-demo.json`. The page needs the BFF on
   8000 (the Vite proxy target) to get past "checking session".
+- To look at signed-in pages without Keycloak, the BFF or a sign-in, stub the
+  SPA's requests in the browser (for example with `agent-browser network route`):
+  `GET /bff/session` returns
+  `{"authenticated":true,"user":{"sub":"alice","name":"Alice Example","email":"alice@example.com"}}`,
+  `GET /api/notes` returns `[]` or
+  `[{"id":"1","text":"Notatka","created_at":"2026-10-10T15:03:00+02:00"}]`, and
+  `POST /bff/logout` returns `{"logout_url":"http://localhost:5173/"}` (abort it
+  to see the logout error).
 - The factory dashboard (`make dashboard` or `python3 -m http.server`) defaults
   to port 8000 and collides with the BFF. While the BFF runs, serve it on
   another port: `make dashboard DASHBOARD_PORT=8090` or
