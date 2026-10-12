@@ -61,6 +61,27 @@ Decisions you made where the request was ambiguous, each with a one-line reason.
 The approver escalates to a human when one of these is a product decision.
 ```
 
+## Split
+
+Some requests are several jobs. When the request holds independent
+deliverables, each worth merging on its own, that together would make one diff
+too large to review well, don't spec it. Write `spec.md` as:
+
+```markdown
+SPLIT
+
+- [ ] <first request>
+- [ ] <second request>
+
+## Why
+One or two sentences.
+```
+
+Two to five items, in the order they should be built. Each is a one-line request
+in the style of `factory/backlog.md`, complete enough for a spec-writer who sees
+only that line. Don't split a change whose parts only work together, and don't
+split off work the request needs.
+
 ## Revise
 
 When your prompt says Revise, a human has read `spec.md` and sent it back. Read

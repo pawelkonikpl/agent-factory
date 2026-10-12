@@ -22,8 +22,8 @@ tree, since they hold live state. Read every other file as it is on `main`, with
    `factory/backlog.md`.
 2. Earlier replans in `factory/replans/`. Their `Jobs:` lines list the jobs
    already replanned.
-3. Every other job folder in `factory/jobs/` whose `job.json` stage is `merged`
-   or `needs-human`: `spec.md`, `build.md`, `rework-*.md`, every
+3. Every other job folder in `factory/jobs/` whose `job.json` stage is
+   `merged`, `split` or `needs-human`: `spec.md`, `build.md`, `rework-*.md`, every
    `round-*/review-*.md` and `decision.md`.
 4. `.claude/skills/factory/SKILL.md` and `.claude/agents/*.md`.
 5. `git log --oneline main` back to the oldest of those jobs, for work that

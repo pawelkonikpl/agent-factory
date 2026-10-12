@@ -48,6 +48,9 @@ BUILD_PROMPT.md                  the prompt that built the original factory
 - The builder's first commit is the spec, at `specs/features/<job-id>.md`, so
   every merged feature keeps its spec in the repo next to its code. The rest of
   the job folder is runtime state that stays out of git.
+- When a request is really several jobs, the spec-writer splits it: it lists
+  them as backlog items instead of writing a spec, and the factory adds them to
+  `factory/backlog.md` for `/factory next`.
 - Each job gets its own git worktree next to your repo
   (`../<repo>-factory/<job-id>/`) on a `factory/<job-id>` branch. Open several
   Claude sessions and run `/factory` in each to build features in parallel.

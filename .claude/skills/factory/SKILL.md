@@ -93,7 +93,7 @@ it merges with the code it describes.
 ```
 
 - `stage` is one of `spec`, `spec-review`, `build`, `review`, `approve`,
-  `merged`, `needs-human`. Worktree setup counts as `spec`.
+  `merged`, `split`, `needs-human`. Worktree setup counts as `spec`.
 - `round` is the current review round (0 until the first round starts).
 - `reviews` holds the current round only. Each value is `pending`, `PASS` or
   `CHANGES`. Earlier rounds live in their `round-<N>/` folders, which the
@@ -130,7 +130,8 @@ gets `5102 + 10n`, appended as ` Port: <port>.`
 3. **Spec.** Spawn `spec-writer` with the prompt
    `<paths> Feature: <feature, verbatim>`, plus ` Roadmap phase: <phase>` when
    `/factory next` gave one.
-   Wait for it to finish, then check that `spec.md` exists.
+   Wait for it to finish, then check that `spec.md` exists. If its first line is
+   `SPLIT`, go to **Split**.
 4. **Build.** Set `stage: "build"`. Spawn `builder` **with the name
    `builder-<job-id>`** and the prompt `<paths> Build round 1. Port: <port>.`
    Wait for it to finish, then go to **Build check**.
@@ -201,6 +202,25 @@ Set `stage: "needs-human"`. The branch and its worktree stay for the human to
 inspect. Tell the user which job is waiting, give the worktree path, and quote
 `decision.md` (or the BLOCKED reason from `build.md`).
 
+### Split
+
+The spec-writer found several jobs in one request and listed them in `spec.md`
+as `- [ ]` lines instead of writing a spec.
+
+1. Put those lines, verbatim and in order, into `factory/backlog.md` with one
+   Edit: right after the job's own backlog line when `/factory next` claimed
+   it, otherwise right before the first `- [ ]` line, or at the end when there
+   is none. On the job's own line, append ` (split)` after the job id.
+2. Remove the worktree and branch. The spec-writer never commits, so the branch
+   holds nothing:
+   ```bash
+   git worktree remove <worktree>
+   git branch -D factory/<job-id>
+   ```
+   If removing the worktree fails, tell the user what it printed.
+3. Set `stage: "split"`. Tell the user the new backlog items and that
+   `/factory next` builds the first one.
+
 ## /factory next
 
 Read `factory/backlog.md` and take the first `- [ ]` item. Claim it with one
@@ -216,7 +236,8 @@ heading above it, its phase is that heading and goal line, joined with ` — `.
 ## /factory plan <feature> and /factory plan next
 
 The same as `/factory <feature>` and `/factory next`, with a human gate after
-the spec: run steps 1–3, then set `stage: "spec-review"` and stop. Tell the user
+the spec: run steps 1–3 (a `SPLIT` still goes to **Split**), then set
+`stage: "spec-review"` and stop. Tell the user
 the job id and the path of `spec.md`, and that they can edit it by hand, build it
 with `/factory go <job-id>`, or have the spec-writer revise it with
 `/factory rework <job-id> <note>`.
@@ -237,7 +258,8 @@ The job must be in `spec-review` or `needs-human`. Write the note, verbatim, to
 
 - **In `spec-review`**: set `stage: "spec"` and spawn `spec-writer` with the
   prompt `<paths> Revise: read rework-<k>.md and revise spec.md.` When it
-  finishes, set `stage: "spec-review"` and stop, as `/factory plan` does.
+  finishes, go to **Split** if the first line of `spec.md` is `SPLIT`;
+  otherwise set `stage: "spec-review"` and stop, as `/factory plan` does.
 - **In `needs-human`**:
   1. Set `stage: "build"`.
   2. Spawn a fresh `builder` named `builder-<job-id>` with the prompt
