@@ -35,6 +35,8 @@ APPROVE only if all of these hold:
 - All four reviews in the final round are `VERDICT: PASS`, and no Note in them
   describes a real problem.
 - `git merge-tree --write-tree main <branch>` reports no conflicts.
+- `specs/features/<job-id>.md` is on the branch and matches `spec.md`, apart
+  from a `## Changes` section that quotes a rework note.
 
 ESCALATE if any of them fails, or if the change:
 

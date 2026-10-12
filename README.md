@@ -43,6 +43,9 @@ BUILD_PROMPT.md                  the prompt that built the original factory
   `VERDICT: CHANGES`; `decision.md` starts with `APPROVE` or `ESCALATE`.
 - The four reviewers run in parallel. A round is done only when all four files
   exist. If any says CHANGES, the same builder is resumed (at most twice).
+- The builder's first commit is the spec, at `specs/features/<job-id>.md`, so
+  every merged feature keeps its spec in the repo next to its code. The rest of
+  the job folder is runtime state that stays out of git.
 - Each job gets its own git worktree next to your repo
   (`../<repo>-factory/<job-id>/`) on a `factory/<job-id>` branch. Open several
   Claude sessions and run `/factory` in each to build features in parallel.

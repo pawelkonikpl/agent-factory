@@ -23,7 +23,8 @@ feature → spec-writer → builder → [security, ux, ui, code] → WAIT FOR AL
 | Step         | Agent (`subagent_type`) | Writes                                      |
 | ------------ | ----------------------- | ------------------------------------------- |
 | spec         | `spec-writer`           | `spec.md`                                   |
-| build        | `builder`               | `build.md` + commits on `factory/<job-id>`  |
+| build        | `builder`               | `build.md` + commits on `factory/<job-id>`, |
+|              |                         | starting with `specs/features/<job-id>.md`  |
 | review       | `reviewer-security`     | `round-N/review-security.md`                |
 |              | `reviewer-ux`           | `round-N/review-ux.md`                      |
 |              | `reviewer-ui`           | `round-N/review-ui.md`                      |
@@ -57,7 +58,9 @@ started or was handed.
 
 `<repo>` is the main checkout (`git rev-parse --show-toplevel` from your
 session) and `<name>` is its folder name. `factory/jobs/` is gitignored runtime
-state that never lands in a commit.
+state that never lands in a commit. The spec is the one file that outlives it:
+the builder commits a copy to `specs/features/<job-id>.md` on the job branch, so
+it merges with the code it describes.
 
 ```
 <repo>/factory/backlog.md                      queue for /factory next
@@ -68,6 +71,7 @@ state that never lands in a commit.
 <repo>/factory/jobs/<job-id>/round-<N>/review-{security,ux,ui,code}.md
 <repo>/factory/jobs/<job-id>/decision.md
 <repo>/../<name>-factory/<job-id>/             the job's worktree, on factory/<job-id>
+<worktree>/specs/features/<job-id>.md          the spec, committed by the builder
 ```
 
 ### job.json
