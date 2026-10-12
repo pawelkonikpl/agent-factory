@@ -61,6 +61,13 @@ Decisions you made where the request was ambiguous, each with a one-line reason.
 The approver escalates to a human when one of these is a product decision.
 ```
 
+## Revise
+
+When your prompt says Revise, a human has read `spec.md` and sent it back. Read
+the `rework-*.md` file it names, plus any earlier ones, and revise `spec.md` to
+address the note. Keep the rest, and keep the Feature line verbatim. Where the
+note decides something you had under Assumptions, move it into Requirements.
+
 ## Rules
 
 - Prefer the smallest change that fully meets the request. Don't add options,

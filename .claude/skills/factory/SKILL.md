@@ -1,6 +1,6 @@
 ---
 name: factory
-description: Run the software factory. Use when the user types /factory <feature>, /factory next, /factory approve <job-id>, or /factory rework <job-id> <note>. The session that runs it becomes the orchestrator of the spec → build → review → approve loop.
+description: Run the software factory. Use when the user types /factory <feature>, /factory next, /factory plan <feature|next>, /factory go <job-id>, /factory approve <job-id>, or /factory rework <job-id> <note>. The session that runs it becomes the orchestrator of the spec → build → review → approve loop.
 ---
 
 # Factory
@@ -19,6 +19,10 @@ feature → spec-writer → builder → [security, ux, ui, code] → WAIT FOR AL
                                                                   ▼ all PASS
                                      merge to main ◄─ APPROVE ─ approver ─ ESCALATE → needs-human
 ```
+
+`/factory plan` adds a human gate between spec-writer and builder: the job stops
+in `spec-review` until the human runs `/factory go`, or sends the spec back with
+`/factory rework`.
 
 | Step         | Agent (`subagent_type`) | Writes                                      |
 | ------------ | ----------------------- | ------------------------------------------- |
@@ -87,8 +91,8 @@ it merges with the code it describes.
   "reviews": { "security": "CHANGES", "ux": "PASS", "ui": "pending", "code": "PASS" } }
 ```
 
-- `stage` is one of `spec`, `build`, `review`, `approve`, `merged`,
-  `needs-human`. Worktree setup counts as `spec`.
+- `stage` is one of `spec`, `spec-review`, `build`, `review`, `approve`,
+  `merged`, `needs-human`. Worktree setup counts as `spec`.
 - `round` is the current review round (0 until the first round starts).
 - `reviews` holds the current round only. Each value is `pending`, `PASS` or
   `CHANGES`. Earlier rounds live in their `round-<N>/` folders, which the
@@ -208,21 +212,37 @@ on its backlog line with the job id. The backlog is the roadmap: items sit under
 `## ` phase headings with the phase goal on the line below. When the item has a
 heading above it, its phase is that heading and goal line, joined with ` — `.
 
+## /factory plan <feature> and /factory plan next
+
+The same as `/factory <feature>` and `/factory next`, with a human gate after
+the spec: run steps 1–3, then set `stage: "spec-review"` and stop. Tell the user
+the job id and the path of `spec.md`, and that they can edit it by hand, build it
+with `/factory go <job-id>`, or have the spec-writer revise it with
+`/factory rework <job-id> <note>`.
+
+## /factory go <job-id>
+
+The job must be in `spec-review`. Run step 4 (**Build**) of `/factory <feature>`
+and continue from there.
+
 ## /factory approve <job-id>
 
 The job must be in `needs-human`. Run **Merge** with that job id.
 
 ## /factory rework <job-id> <note>
 
-The job must be in `needs-human`.
+The job must be in `spec-review` or `needs-human`. Write the note, verbatim, to
+`factory/jobs/<job-id>/rework-<k>.md`, where `k` is the next unused number. Then:
 
-1. Write the note, verbatim, to `factory/jobs/<job-id>/rework-<k>.md`, where `k`
-   is the next unused number.
-2. Set `stage: "build"`.
-3. Spawn a fresh `builder` named `builder-<job-id>` with the prompt
-   `<paths> Rework: read rework-<k>.md and address it, then update build.md for round N+1. Port: <port>.`
-   (`N` is the job's last round.) A rework run gets a fresh `MAX_RESUMES`.
-4. Continue from **Build check**, exactly like a new job.
+- **In `spec-review`**: set `stage: "spec"` and spawn `spec-writer` with the
+  prompt `<paths> Revise: read rework-<k>.md and revise spec.md.` When it
+  finishes, set `stage: "spec-review"` and stop, as `/factory plan` does.
+- **In `needs-human`**:
+  1. Set `stage: "build"`.
+  2. Spawn a fresh `builder` named `builder-<job-id>` with the prompt
+     `<paths> Rework: read rework-<k>.md and address it, then update build.md for round N+1. Port: <port>.`
+     (`N` is the job's last round.) A rework run gets a fresh `MAX_RESUMES`.
+  3. Continue from **Build check**, exactly like a new job.
 
 ## Reporting
 

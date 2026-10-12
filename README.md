@@ -55,9 +55,16 @@ BUILD_PROMPT.md                  the prompt that built the original factory
 ```
 /factory <feature>               run a new job through the loop
 /factory next                    run the first unchecked item in factory/backlog.md
+/factory plan <feature|next>     the same, but stop after the spec for you to read it
+/factory go <job-id>             build a job whose spec you have read
 /factory approve <job-id>        merge a needs-human job into main
-/factory rework <job-id> <note>  send a needs-human job back to the builder with feedback
+/factory rework <job-id> <note>  send a job back with feedback: to the spec-writer
+                                 from spec review, to the builder from needs-human
 ```
+
+Use `/factory plan` when the request leaves product decisions open, or when a
+wrong spec would be expensive. The job waits in **Spec review** on the
+dashboard; edit `spec.md` by hand if you like, then run `/factory go`.
 
 ## Use it in your repo
 

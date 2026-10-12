@@ -51,7 +51,7 @@
 
   /* Board */
   .board {
-    display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px;
+    display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px;
     padding: 20px 32px 40px; align-items: start;
   }
   .col { min-width: 0; }
@@ -243,6 +243,8 @@
 <footer>
   <span>/factory &lt;feature&gt;</span>
   <span>/factory next</span>
+  <span>/factory plan &lt;feature|next&gt;</span>
+  <span>/factory go &lt;job-id&gt;</span>
   <span>/factory approve &lt;job-id&gt;</span>
   <span>/factory rework &lt;job-id&gt; &lt;note&gt;</span>
 </footer>
@@ -267,6 +269,7 @@
 const POLL_MS = 2000
 const STAGES = [
   { key: 'spec', label: 'Spec', who: 'spec-writer · opus' },
+  { key: 'spec-review', label: 'Spec review', who: 'go · rework', cls: 'human' },
   { key: 'build', label: 'Build', who: 'builder · opus' },
   { key: 'review', label: 'Review', who: 'sec · ux · ui · code' },
   { key: 'approve', label: 'Approve', who: 'approver · opus' },
@@ -338,7 +341,8 @@ function chips(n, verdicts, waiting) {
 
 function card(job, past) {
   const live = LIVE.has(job.stage)
-  const human = job.stage === 'needs-human'
+  const human = job.stage === 'needs-human' || job.stage === 'spec-review'
+  const next = job.stage === 'spec-review' ? 'go' : 'approve'
   const rows = past.map((v, i) => chips(i + 1, v, false))
   if (job.round > 0) rows.push(chips(job.round, job.reviews, job.stage === 'review'))
   const [num, ...slug] = job.id.split('-')
@@ -353,7 +357,7 @@ function card(job, past) {
       <p class="feature">${esc(job.feature)}</p>
       <div class="branch">${esc(job.branch)}</div>
       ${rows.length ? `<div class="rounds">${rows.join('')}</div>` : ''}
-      ${human ? `<div class="hint">/factory approve ${esc(job.id)}<br>/factory rework ${esc(job.id)} …</div>` : ''}
+      ${human ? `<div class="hint">/factory ${next} ${esc(job.id)}<br>/factory rework ${esc(job.id)} …</div>` : ''}
     </button>`
 }
 
