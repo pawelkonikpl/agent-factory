@@ -13,7 +13,9 @@ start() {
     echo "already running: $pattern"
     return
   fi
-  setsid nohup "$@" >"$log" 2>&1 < /dev/null &
+  # setsid runs in the foreground, so the server is in its own session before this
+  # script exits; a server still forking when the script ends gets killed with it.
+  setsid -w bash -c 'nohup "$@" >"$0" 2>&1 < /dev/null &' "$log" "$@"
 }
 
 start "uvicorn app.main" /tmp/dev-backend.log make backend
