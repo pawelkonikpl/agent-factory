@@ -9,6 +9,7 @@ OAuth/OIDC Backend-for-Frontend demo plus the software factory that builds on it
 - `web/`: Vite + React + TypeScript SPA. UI copy is Polish. The Vite dev server serves it in development, and `npm run build` writes a static bundle to `web/dist/` for a separate static host that shares its origin with the BFF (proxying `/bff` and `/api`), since `bff/` and `api/` serve no frontend files. The SPA talks to the backend only through `/bff/*` (session) and `/api/*` (the BFF proxy).
 - `keycloak/`: dev-only Keycloak (`docker-compose.yml`) and the `demo` realm (`realm-demo.json`).
 - `compose.yaml` (root): the dev-only sandbox that runs the whole stack in containers, built from the `Containerfile` in each of `api/`, `bff/` and `web/`.
+- `.devcontainer/`: dev-only coding environment (dev container plus Keycloak), see "Dev container".
 - `.claude/`, `factory/`: the software factory (skill, agents, dashboard, backlog). See README.md.
 
 ## Setup (fresh checkout)
@@ -79,6 +80,46 @@ make sandbox-down    # stop and remove the containers
   Watch `make sandbox-logs`.
 - It cannot run at the same time as the host-run Keycloak (`make docker-up`) or
   `npm run dev` (`make web`) on 5173: they use the same ports.
+
+## Dev container
+
+`.devcontainer/` is a coding environment with Python 3.12, uv, Node 22, git and
+make. Keycloak runs as a second container that shares its network, so
+`localhost:8080` inside it is Keycloak. It needs Docker or Podman and a Dev
+Containers client, such as VS Code with the Dev Containers extension ("Dev
+Containers: Reopen in Container"). VS Code asks which configuration to use: "OAuth
+BFF demo" for Docker, "OAuth BFF demo (Podman)" for Podman.
+
+Inside the container, each command in its own terminal:
+
+```bash
+make backend    # API and BFF
+make web        # web dev server, port 5173
+```
+
+- Setup runs automatically when the container is created: `.env` is copied from
+  `.env.example` where it is missing, then `uv sync --frozen` and `npm ci`.
+- Open http://localhost:5173. The client forwards 5173 and 8080 to the host. Demo
+  users and the validation commands are the same as on the host.
+- Podman: set the VS Code setting `dev.containers.dockerPath` to `podman`.
+  `.devcontainer/podman/` maps your user to `vscode` (`keep-id`), so the container
+  can write the checkout under rootless Podman. `podman compose` needs
+  docker-compose or podman-compose 1.2 or newer.
+- `npx @devcontainers/cli up --workspace-folder .` also builds and starts it; for
+  Podman add `--docker-path podman --config .devcontainer/podman/devcontainer.json`.
+  That CLI doesn't forward ports, so it's good for tests but not for signing in
+  from a host browser.
+- It cannot run at the same time as the sandbox, the host-run Keycloak
+  (`make docker-up`) or host `make web`: they use the same ports.
+- `.venv` and `node_modules` live in the bind-mounted checkout and are shared with
+  the host. The container installs Linux builds there, so after using it, rerun
+  the host setup.
+- There is no container engine inside, so the `make docker-*` and
+  `make sandbox-*` targets don't work there.
+- Keycloak takes a while to start on first use, so the first login may fail until
+  it is up.
+- `devcontainer-lock.json`, in `.devcontainer/` and in `.devcontainer/podman/`,
+  pins the Node feature version. Commit it when the client updates it.
 
 ## Validation
 

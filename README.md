@@ -91,7 +91,8 @@ In this repo, `make dashboard` does the same from the repo root (bound to
 `make web` starts the web dev server, `make web-build` makes a production build
 of `web/`, and `make help` lists the other targets. `make sandbox-up` runs the
 demo app's full stack (Keycloak, API, BFF and web) in containers under Podman;
-see AGENTS.md.
+see AGENTS.md. `.devcontainer/` is a dev container (with Keycloak) for coding on
+the demo app under Docker or Podman; see AGENTS.md.
 
 ## The example jobs
 
