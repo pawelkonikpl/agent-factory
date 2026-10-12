@@ -9,6 +9,7 @@ orchestrator session picks that file up and does the actual approve or rework.
 """
 
 import argparse
+import contextlib
 import functools
 import hmac
 import io
@@ -122,7 +123,9 @@ class Handler(SimpleHTTPRequestHandler):
                 raise Rejected(HTTPStatus.CONFLICT, f"job is in {stage}, not needs-human")
             target = job_dir / "human-request.json"
             if target.exists():
-                raise Rejected(HTTPStatus.CONFLICT, "a request is already waiting for the orchestrator")
+                raise Rejected(
+                    HTTPStatus.CONFLICT, "a request is already waiting for the orchestrator"
+                )
             write_atomic(target, json.dumps(request, separators=(",", ":"), ensure_ascii=False))
         return job, request
 
@@ -153,10 +156,8 @@ def main() -> None:
     handler = functools.partial(Handler, directory=str(FACTORY))
     with ThreadingHTTPServer(("127.0.0.1", args.port), handler) as server:
         print(f"Dashboard: http://127.0.0.1:{args.port}/dashboard.html", flush=True)
-        try:
+        with contextlib.suppress(KeyboardInterrupt):
             server.serve_forever()
-        except KeyboardInterrupt:
-            pass
 
 
 if __name__ == "__main__":
