@@ -10,9 +10,8 @@ SANDBOX = $(CONTAINER_ENGINE) compose -f compose.yaml
 help: ## List the targets
 	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-12s %s\n", $$1, $$2}'
 
-dashboard: ## Serve the factory dashboard on 127.0.0.1 (DASHBOARD_PORT, default 8000)
-	@echo "Dashboard: http://localhost:$(DASHBOARD_PORT)/dashboard.html"
-	python3 -m http.server $(DASHBOARD_PORT) --bind 127.0.0.1 --directory factory
+dashboard: ## Serve the factory dashboard (Approve / Rework buttons) on 127.0.0.1 (DASHBOARD_PORT, default 8000)
+	python3 factory/serve.py --port $(DASHBOARD_PORT)
 
 # Both servers run in the background of one shell. When either exits, or on
 # Ctrl-C, the shell stops the other one, so no uvicorn is left behind. A server
