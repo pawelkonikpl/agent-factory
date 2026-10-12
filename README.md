@@ -68,7 +68,10 @@ BUILD_PROMPT.md                  the prompt that built the original factory
 4. Make sure your `AGENTS.md` (or `CLAUDE.md`) says how to set up a fresh
    checkout, start the dev server on a given port, and run your tests, build
    and lint. The agents carry nothing repo-specific; they read all of it from
-   there.
+   there. Optionally add `specs/mission.md`: why the repo exists, its principles
+   and non-goals. The spec-writer keeps specs within it and the approver
+   escalates any change that breaks it. Group `factory/backlog.md` into phases
+   (a `## ` heading with the goal below it) to make it a roadmap.
 5. Install the [`agent-browser`](https://github.com/vercel-labs/agent-browser)
    CLI if your project has pages to look at. The builder and the UX and UI
    reviewers use it to check the running app.

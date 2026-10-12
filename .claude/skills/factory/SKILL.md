@@ -36,7 +36,10 @@ run has at most 3 review rounds. To change the factory, edit this file and the
 agent files in `.claude/agents/`.
 
 Every agent reads `AGENTS.md` (or `CLAUDE.md`) for the repo's setup, dev server,
-validation commands and conventions. Nothing repo-specific lives in these files.
+validation commands and conventions. The spec-writer and approver also read
+`specs/mission.md` when it exists: why the repo exists, its principles and
+non-goals. With the roadmap in `factory/backlog.md`, that is the repo's
+constitution. Nothing repo-specific lives in these files.
 
 ## Parallel jobs
 
@@ -120,7 +123,8 @@ gets `5102 + 10n`, appended as ` Port: <port>.`
    (installing dependencies, for example). If any of it fails, stop and tell
    the user.
 3. **Spec.** Spawn `spec-writer` with the prompt
-   `<paths> Feature: <feature, verbatim>`.
+   `<paths> Feature: <feature, verbatim>`, plus ` Roadmap phase: <phase>` when
+   `/factory next` gave one.
    Wait for it to finish, then check that `spec.md` exists.
 4. **Build.** Set `stage: "build"`. Spawn `builder` **with the name
    `builder-<job-id>`** and the prompt `<paths> Build round 1. Port: <port>.`
@@ -200,7 +204,9 @@ fails because the line changed, another session claimed it: re-read the backlog
 and try the next `- [ ]` item. If none is left, say so and stop.
 
 Run `/factory <item>`, and once step 1 has given it a job id, replace `claimed`
-on its backlog line with the job id.
+on its backlog line with the job id. The backlog is the roadmap: items sit under
+`## ` phase headings with the phase goal on the line below. When the item has a
+heading above it, its phase is that heading and goal line, joined with ` — `.
 
 ## /factory approve <job-id>
 

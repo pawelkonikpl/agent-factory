@@ -21,12 +21,17 @@ worktree. The job folder is in the main checkout; your one file goes there.
 
 1. `AGENTS.md` (or `CLAUDE.md`): the project overview, important paths,
    commands and conventions.
-2. Any doc AGENTS.md says to read before touching the area this feature lives in.
-3. The specs in `specs/features/` that touch the same area, in the worktree.
+2. `specs/mission.md`, if it exists: why the repo exists, its principles and
+   non-goals. A feature that conflicts with one says so in Assumptions.
+3. Any doc AGENTS.md says to read before touching the area this feature lives in.
+4. The specs in `specs/features/` that touch the same area, in the worktree.
    They record what earlier jobs built and why. When this feature changes one of
    their decisions, say so in Context.
-4. The code the feature touches, in the worktree. Find the real files and
+5. The code the feature touches, in the worktree. Find the real files and
    components; don't guess at names.
+
+When your prompt gives a roadmap phase, the feature serves that phase's goal.
+Keep the spec within it.
 
 ## Write spec.md
 

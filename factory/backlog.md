@@ -1,12 +1,27 @@
 # Backlog
 
-`/factory next` builds the first unchecked item and checks it off with its job id.
+The roadmap. Items are grouped into phases: a `## ` heading with the phase goal
+on the line below it. `/factory next` builds the first unchecked item, top to
+bottom, and checks it off with its job id. `specs/mission.md` says what the
+phases serve.
+
+## Phase 1: A working dev stack
+
+Goal: the demo app runs on the host, in containers and in a dev container, each with one command.
 
 - [x] Copy the OAuth/OIDC auth from /Users/pawel/Downloads/oauth-bff-demo into this project: the BFF (bff/: login, logout, CSRF, session store, proxy), the protected API (api/), the Keycloak setup (keycloak/docker-compose.yml, realm-demo.json) and the web login flow (web/), with their tests and .env.example files → 001-oauth-bff-auth
-
-
 - [x] Add a Makefile (or Taskfile) so the dashboard starts with one command, e.g. `make dashboard` serving factory/ on http://localhost:8000/dashboard.html, plus targets to run the backend and Docker services: `make backend` (starts api/ and bff/ locally), `make docker-up` / `make docker-down` / `make docker-logs` (Keycloak and any other docker-compose services), and `make help` listing all targets; add a short note in README.md → 002-makefile-dev-targets
-- [ ] Add git worktree support for the factory: make sure each job runs in its own worktree (../<name>-factory/<job-id> on branch factory/<job-id>), add helpers (e.g. `make worktrees` to list them, `make worktree-clean` to remove merged/stale ones), gitignore factory/jobs/, and show the worktree path on the dashboard job cards
-- [ ] Add application metrics: expose a /metrics endpoint (Prometheus format) with request count, latency histogram, error rate and auth login/logout counters, plus a short note on how to scrape it
 - [x] Run the whole project in a sandbox with Podman instead of Docker: make Keycloak (keycloak/docker-compose.yml) run under rootless Podman (`podman compose` / podman-compose), optionally containerize api/, bff/ and web/ (Containerfiles) so the full stack starts in an isolated sandbox with one command, update the Makefile (e.g. `make podman-up` / `make podman-down` / `make podman-logs`, or switch the docker-* targets to a `CONTAINER_ENGINE` variable defaulting to podman), and update README.md and AGENTS.md → 003-podman-sandbox
 - [x] Build the React frontend for the app (web/, Vite + React + TypeScript, Polish UI copy) on top of the existing login flow, talking to the backend only through the BFF `/api` proxy. First check whether the backend (bff/ or api/) already serves any frontend or static files (StaticFiles mounts, HTML/template routes, a bundled build, leftover placeholder pages); if it does, remove that code, its tests and its docs, so the backend is API-only and the SPA is served by Vite (dev) or a separate static host. Update README.md and AGENTS.md if the run instructions change → 004-react-frontend
+
+## Phase 2: Factory tooling
+
+Goal: running, inspecting and cleaning up parallel factory jobs needs no manual git work.
+
+- [ ] Add git worktree support for the factory: make sure each job runs in its own worktree (../<name>-factory/<job-id> on branch factory/<job-id>), add helpers (e.g. `make worktrees` to list them, `make worktree-clean` to remove merged/stale ones), gitignore factory/jobs/, and show the worktree path on the dashboard job cards
+
+## Phase 3: Observability
+
+Goal: the app reports its traffic, latency, errors and auth activity in a form Prometheus can scrape.
+
+- [ ] Add application metrics: expose a /metrics endpoint (Prometheus format) with request count, latency histogram, error rate and auth login/logout counters, plus a short note on how to scrape it

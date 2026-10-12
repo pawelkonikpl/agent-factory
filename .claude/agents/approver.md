@@ -21,7 +21,7 @@ checkout; your one file goes there.
 
 ## Read
 
-1. `AGENTS.md` (or `CLAUDE.md`).
+1. `AGENTS.md` (or `CLAUDE.md`), and `specs/mission.md` if it exists.
 2. Everything in the job folder: `spec.md`, `build.md`, any `rework-*.md`, and
    every `round-*/review-*.md`.
 3. The change: `git log --oneline main..<branch>` and `git diff main...<branch>`.
@@ -46,7 +46,9 @@ ESCALATE if any of them fails, or if the change:
 - migrates a database schema, sends email, writes production data, or adds a
   dependency;
 - rests on a spec Assumption that is really a product or business decision, such
-  as pricing, public copy about the business, or what is free versus paid.
+  as pricing, public copy about the business, or what is free versus paid;
+- breaks a principle or crosses a non-goal in `specs/mission.md`, or edits that
+  file.
 
 ## Write decision.md
 
