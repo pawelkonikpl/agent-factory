@@ -228,11 +228,9 @@ apply.
 
 1. If `git log --oneline main..solve/<job-id>/c<k>` prints nothing, the
    candidate has no code change. Say so and go to **Clean**.
-2. The main checkout must be clean and on `main`:
-   `git status --porcelain -- . ':!solve/evals/runs'` prints nothing and
-   `git branch --show-current` prints `main`. Eval reports are exempt: jobs never
-   touch them, so they can't conflict with the merge. If not, tell the user and
-   stop.
+2. The main checkout must be clean and on `main`: `git status --porcelain`
+   prints nothing and `git branch --show-current` prints `main`. If not, tell
+   the user and stop.
 3. `git merge --no-ff solve/<job-id>/c<k> -m "Merge solve/<job-id>/c<k>"`. If
    it fails, run `git merge --abort` and tell the user why.
 4. Set `stage: "applied"`, then run **Clean**. Never push.
@@ -291,8 +289,9 @@ solved. Cases must be committed on `main`, since worktrees start from `main`.
    One line per case whose grade changed, or "First run." when there is none.
    ```
 
-Tell the user the pass rate and the report path. Don't commit the report: the
-user decides what to keep.
+Tell the user the pass rate and the report path. `solve/evals/runs/` is
+gitignored, so reports never block a merge into the main checkout; the user
+keeps one with `git add -f`.
 
 ## Reporting
 

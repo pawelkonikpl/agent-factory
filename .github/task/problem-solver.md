@@ -62,7 +62,10 @@ domyślnie jednego wykonawcę i zestaw testowy z ukrytymi oceniaczami.
 5. W każdym przypadku widoczne testy (`python3 -m unittest` w katalogu
    przypadku) przechodzą albo są niestabilne, tak jak opisuje `problem.md`.
    Błąd widać dopiero po reprodukcji.
-6. `.gitignore` zawiera `solve/jobs/`.
+6. `.gitignore` zawiera `solve/jobs/` i `solve/evals/runs/`. Po
+   `/solve eval` `git status --porcelain` w głównym checkoucie nic nie
+   wypisuje, więc sprawdzenie czystości przed merge w `/factory` nie jest
+   zablokowane.
 7. Pliki fabryki (`.claude/skills/factory/`, dotychczasowi agenci, `factory/`)
    są niezmienione: `git diff main -- .claude/skills/factory .claude/agents/builder.md factory/`
    jest pusty.

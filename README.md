@@ -177,7 +177,8 @@ there.
 `make solve-selftest` checks that every grader fails on its case and passes
 with its reference fix. `/solve eval --baseline` followed by `/solve eval`
 shows whether the full loop beats one solver working alone on the same cases.
-Reports go to `solve/evals/runs/`.
+Reports go to `solve/evals/runs/`, which is gitignored so a report never blocks
+a `/factory` or `/solve` merge; keep one with `git add -f`.
 
 The five cases are seeds. To add one, create `solve/evals/cases/<case-id>/`
 with a `problem.md` written the way a user would report it, plus the code, and
