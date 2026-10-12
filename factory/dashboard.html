@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="factory-token" content="">
 <title>Software Factory</title>
 <style>
   :root {
@@ -80,7 +81,11 @@
     transition: background .15s, border-color .15s, transform .15s;
   }
   .card:hover { background: var(--card-hover); transform: translateY(-1px); }
-  .card:focus-visible { outline: 2px solid var(--active); outline-offset: 2px; }
+  .card:has(> .card-open:focus-visible) { outline: 2px solid var(--active); outline-offset: 2px; }
+  .card-open {
+    display: block; width: 100%; text-align: left; cursor: pointer;
+    background: none; border: 0; padding: 0; outline: none;
+  }
   .card.live { border-color: color-mix(in srgb, var(--active) 35%, var(--line)); }
   .card.human {
     border-color: var(--human);
@@ -126,6 +131,35 @@
     font-family: var(--mono); font-size: 10.5px; color: var(--muted); line-height: 1.6;
     overflow-wrap: anywhere;
   }
+  .actions { margin-top: 10px; display: grid; gap: 8px; cursor: default; }
+  .actions .btns { display: flex; gap: 8px; }
+  .act {
+    flex: 1; padding: 5px 0; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--bg);
+    font-family: var(--mono); font-size: 11px;
+  }
+  .act:hover { border-color: var(--muted); }
+  .act.primary {
+    border-color: var(--human); color: var(--human);
+    background: color-mix(in srgb, var(--human) 12%, transparent);
+  }
+  .act:disabled { opacity: .45; cursor: not-allowed; }
+  .act:focus-visible, .actions textarea:focus-visible { outline: 2px solid var(--active); outline-offset: 2px; }
+  .actions textarea {
+    width: 100%; min-height: 64px; resize: vertical; padding: 6px 8px;
+    background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px;
+    font: 12px/1.5 var(--mono);
+  }
+  .actions textarea::placeholder { color: var(--faint); }
+  .sent {
+    margin-top: 10px; padding: 6px 8px; border: 1px dashed var(--human); border-radius: 6px;
+    font-family: var(--mono); font-size: 11px; color: var(--human); overflow-wrap: anywhere;
+  }
+  .sent .q {
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+    color: var(--muted); margin-top: 2px; white-space: pre-wrap;
+  }
+  .act-error { font-family: var(--mono); font-size: 11px; color: var(--human); overflow-wrap: anywhere; }
 
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
   @keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
@@ -281,7 +315,10 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
 
 let jobs = []
+let pasts = []
+let requests = [] // human-request.json of each needs-human job, null when there is none
 let lastRender = ''
+const actions = new Map() // job id -> { rework, note, busy, error } for needs-human cards
 const roundCache = new Map() // "<job>/<n>" -> verdicts of a finished round
 let openJobId = null
 let openPath = null
@@ -336,34 +373,86 @@ function chips(n, verdicts, waiting) {
   return `<div class="round"><span class="r">R${n}</span>${cells}</div>`
 }
 
-function card(job, past) {
+// A pending request from the dashboard; the orchestrator deletes it when it acts.
+async function humanRequest(job) {
+  if (job.stage !== 'needs-human') return null
+  const url = `jobs/${job.id}/human-request.json`
+  const res = await fetch(url, { cache: 'no-store' })
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`)
+  try {
+    return JSON.parse(await res.text())
+  } catch {
+    return {}
+  }
+}
+
+function sentNote(req) {
+  const what = req.action === 'approve' ? 'Approve' : req.action === 'rework' ? 'Rework' : 'Request'
+  const note = req.action === 'rework' && typeof req.note === 'string'
+    ? `<span class="q">${esc(req.note)}</span>` : ''
+  return `<div class="sent" role="status">${what} sent · waiting for the orchestrator${note}</div>`
+}
+
+// The note's text is not part of the HTML, so typing never triggers a redraw;
+// draw() puts it back into the textarea after each redraw.
+function actionsHtml(job) {
+  const id = esc(job.id)
+  const a = actions.get(job.id) || {}
+  const dis = a.busy ? ' disabled' : ''
+  const controls = a.rework
+    ? `<textarea data-note="${id}" maxlength="4000" aria-label="Rework note for ${id}"
+                 placeholder="What should the builder change?"${dis}></textarea>
+       <div class="btns">
+         <button type="button" class="act primary" data-act="send"${dis}>${a.busy ? 'Sending…' : 'Send'}</button>
+         <button type="button" class="act" data-act="cancel"${dis}>Cancel</button>
+       </div>`
+    : `<div class="btns">
+         <button type="button" class="act primary" data-act="approve"${dis}>${a.busy ? 'Sending…' : 'Approve'}</button>
+         <button type="button" class="act" data-act="rework"${dis}>Rework</button>
+       </div>`
+  const error = a.error ? `<div class="act-error" role="alert">${esc(a.error)}</div>` : ''
+  return `<div class="actions" data-actions>${controls}${error}</div>`
+}
+
+function card(job, past, req) {
   const live = LIVE.has(job.stage)
   const human = job.stage === 'needs-human'
   const rows = past.map((v, i) => chips(i + 1, v, false))
   if (job.round > 0) rows.push(chips(job.round, job.reviews, job.stage === 'review'))
   const [num, ...slug] = job.id.split('-')
   return `
-    <button class="card ${live ? 'live' : ''} ${human ? 'human' : ''} ${job.stage === 'merged' ? 'merged' : ''}"
-            data-job="${esc(job.id)}">
-      <div class="card-top">
-        ${live ? '<span class="pulse" aria-label="running"></span>' : ''}
-        <span class="num">${esc(num)} · ${esc(slug.join('-'))}</span>
-        ${human ? '<span class="flag">your call</span>' : ''}
-      </div>
-      <p class="feature">${esc(job.feature)}</p>
-      <div class="branch">${esc(job.branch)}</div>
-      ${rows.length ? `<div class="rounds">${rows.join('')}</div>` : ''}
-      ${human ? `<div class="hint">/factory approve ${esc(job.id)}<br>/factory rework ${esc(job.id)} …</div>` : ''}
-    </button>`
+    <div class="card ${live ? 'live' : ''} ${human ? 'human' : ''} ${job.stage === 'merged' ? 'merged' : ''}"
+         data-job="${esc(job.id)}">
+      <button type="button" class="card-open">
+        <div class="card-top">
+          ${live ? '<span class="pulse" aria-label="running"></span>' : ''}
+          <span class="num">${esc(num)} · ${esc(slug.join('-'))}</span>
+          ${human ? '<span class="flag">your call</span>' : ''}
+        </div>
+        <p class="feature">${esc(job.feature)}</p>
+        <div class="branch">${esc(job.branch)}</div>
+        ${rows.length ? `<div class="rounds">${rows.join('')}</div>` : ''}
+        ${human ? `<div class="hint">/factory approve ${esc(job.id)}<br>/factory rework ${esc(job.id)} …</div>` : ''}
+      </button>
+      ${human ? (req ? sentNote(req) : actionsHtml(job)) : ''}
+    </div>`
 }
 
 async function render() {
+  ;[pasts, requests] = await Promise.all([
+    Promise.all(jobs.map(pastRounds)),
+    Promise.all(jobs.map(humanRequest)),
+  ])
+  draw()
+}
+
+function draw() {
   const problems = []
   const byStage = Object.fromEntries(STAGES.map((s) => [s.key, []]))
-  const pasts = await Promise.all(jobs.map(pastRounds))
   jobs.forEach((job, i) => {
     if (!byStage[job.stage]) problems.push(`Job ${job.id} has unknown stage "${job.stage}"`)
-    else byStage[job.stage].push(card(job, pasts[i]))
+    else byStage[job.stage].push(card(job, pasts[i], requests[i]))
   })
   // Newest first within a column.
   const html = STAGES.map((s) => `
@@ -376,11 +465,82 @@ async function render() {
     </section>`).join('')
   const banner = problems.map((p) => `<div class="banner">${esc(p)}</div>`).join('')
   if (html + banner !== lastRender) {
+    const focused = document.activeElement
+    const note = focused && focused.dataset && focused.dataset.note
+    const sel = note && [focused.selectionStart, focused.selectionEnd]
     lastRender = html + banner
     $('board').innerHTML = html
     $('banner').innerHTML = banner
+    $('board').querySelectorAll('[data-note]').forEach((el) => {
+      el.value = actions.get(el.dataset.note).note
+      syncSend(el)
+      if (el.dataset.note === note) { el.focus(); el.setSelectionRange(...sel) }
+    })
   }
 }
+
+// ---- Approve / Rework ----------------------------------------------------
+
+function syncSend(textarea) {
+  const send = textarea.parentElement.querySelector('[data-act="send"]')
+  if (send && !actions.get(textarea.dataset.note).busy) send.disabled = !textarea.value.trim()
+}
+
+async function sendRequest(id, body) {
+  const a = actions.get(id)
+  a.busy = true
+  a.error = ''
+  draw()
+  try {
+    const res = await fetch('request', {
+      method: 'POST',
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Factory-Token': document.querySelector('meta[name="factory-token"]').content,
+      },
+      body: JSON.stringify({ job: id, ...body }),
+    })
+    if (!res.ok) {
+      let msg = `HTTP ${res.status}`
+      try { msg = (await res.json()).error || msg } catch {}
+      throw new Error(msg)
+    }
+    actions.delete(id)
+  } catch (err) {
+    a.busy = false
+    a.error = `Request failed: ${err.message}`
+  }
+  draw()
+  if (!actions.has(id)) poll()
+}
+
+function onAction(act, id) {
+  if (!actions.has(id)) actions.set(id, { rework: false, note: '', busy: false, error: '' })
+  const a = actions.get(id)
+  if (a.busy) return
+  if (act === 'approve') {
+    if (confirm(`Approve ${id}? The orchestrator will merge factory/${id} into main.`)) {
+      sendRequest(id, { action: 'approve' })
+    }
+  } else if (act === 'rework') {
+    Object.assign(a, { rework: true, error: '' })
+    draw()
+    $('board').querySelector(`[data-note="${CSS.escape(id)}"]`)?.focus()
+  } else if (act === 'cancel') {
+    Object.assign(a, { rework: false, note: '', error: '' })
+    draw()
+  } else if (act === 'send' && a.note.trim()) {
+    sendRequest(id, { action: 'rework', note: a.note })
+  }
+}
+
+document.addEventListener('input', (e) => {
+  const id = e.target.dataset && e.target.dataset.note
+  if (!id) return
+  actions.get(id).note = e.target.value
+  syncSend(e.target)
+})
 
 async function poll() {
   const status = $('status')
@@ -409,7 +569,7 @@ async function loadJobs() {
 
 // ---- Drawer --------------------------------------------------------------
 
-// python -m http.server serves an HTML index for directories; read its links.
+// serve.py (like python -m http.server) serves an HTML index for directories; read its links.
 async function listFiles(dir) {
   const doc = new DOMParser().parseFromString(await fetchText(dir), 'text/html')
   const hrefs = [...doc.querySelectorAll('a')].map((a) => decodeURIComponent(a.getAttribute('href')))
@@ -503,6 +663,9 @@ function closeDrawer() {
 }
 
 document.addEventListener('click', (e) => {
+  const actEl = e.target.closest('[data-act]')
+  if (actEl) return onAction(actEl.dataset.act, actEl.closest('[data-job]').dataset.job)
+  if (e.target.closest('[data-actions]')) return
   const cardEl = e.target.closest('[data-job]')
   if (cardEl) return openDrawer(cardEl.dataset.job)
   const fileEl = e.target.closest('[data-file]')
