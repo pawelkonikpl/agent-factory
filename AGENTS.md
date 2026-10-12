@@ -141,6 +141,11 @@ npm run build
 For the problem solver's eval set (needs only `python3`, `git` and `bash`):
 
 ```bash
-make solve-selftest                                   # every grader fails on its case and passes with the reference fix
 cd solve/evals/cases/<case-id> && python3 -m unittest # one case's visible tests
+make solve-selftest                                   # only after adding or editing an eval case
 ```
+
+`make solve-selftest` checks that every grader fails on its case as committed
+and passes with the reference fix. In a checkout where a case has been fixed,
+such as a `/solve` candidate branch for an eval job, it reports that case as
+FAIL by design, so it is not a regression check for `/solve` jobs.

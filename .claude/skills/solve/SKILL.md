@@ -220,9 +220,11 @@ questions, the failed setup command, or `## Answer` from `answer.md`. Mention
 
 ## /solve apply <job-id> [c<k>]
 
-The job must be in `done` or `needs-human`. The candidate is the one given;
-otherwise the one in `answer.md`'s first line. If there is none, ask the user
-which candidate to apply.
+The job must be in `done` or `needs-human`, with `mode: "interactive"`. Never
+apply an `eval` or `baseline` job: it would fix the case on `main` and spoil
+the eval set. The candidate is the one given; otherwise the one in
+`answer.md`'s first line. If there is none, ask the user which candidate to
+apply.
 
 1. If `git log --oneline main..solve/<job-id>/c<k>` prints nothing, the
    candidate has no code change. Say so and go to **Clean**.

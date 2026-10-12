@@ -66,6 +66,14 @@ domyślnie jednego wykonawcę i zestaw testowy z ukrytymi oceniaczami.
 7. Pliki fabryki (`.claude/skills/factory/`, dotychczasowi agenci, `factory/`)
    są niezmienione: `git diff main -- .claude/skills/factory .claude/agents/builder.md factory/`
    jest pusty.
+8. `/solve apply` odmawia zastosowania zadań w trybie `eval` i `baseline`, bo
+   naprawiłoby to przypadek na `main`. AGENTS.md mówi, że `make solve-selftest`
+   służy tylko do dodawania i edycji przypadków, a nie do sprawdzania regresji
+   w zadaniach `/solve`.
+9. Pełna pętla przechodzi na przypadku `flaky-tags`:
+   - kolejne pliki zaczynają się od `STATUS: READY`, `STATUS: READY`,
+     `VERDICT: PASS`, `VERDICT: STANDS` i `STATUS: SOLVED c1`,
+   - ukryty oceniacz uruchomiony na worktree kandydata kończy się kodem 0.
 
 ## Poza zakresem
 

@@ -8,9 +8,9 @@ maxTurns: 40
 
 You write the brief for one problem-solving job. Your prompt gives the job
 folder, the base worktree and the mode. You write exactly one file,
-`<job folder>/brief.md`. You never edit code or any other file, and you don't
-solve the problem: an answer decided here would skip the checks that make it
-trustworthy.
+`<job folder>/brief.md`. You never edit code or any other file. You may
+reproduce the problem to write sharp checks, but you don't design or choose the
+fix: an answer decided here would skip the checks that make it trustworthy.
 
 ## Where you work
 

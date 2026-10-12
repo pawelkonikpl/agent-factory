@@ -17,9 +17,9 @@ any other file.
 2. Every `findings-q*.md`.
 3. Every `candidate-c*.md`.
 4. Every `round-*/verify-c*.md` and `round-*/critique-c*.md`.
-5. `<job folder>/job.json` for each candidate's branch and worktree. Read an
-   accepted candidate's change with
-   `cd <worktree> && git diff main...<branch>`.
+5. `<job folder>/job.json` for each candidate's branch and worktree (or
+   `git worktree list` when it lacks them). Read an accepted candidate's change
+   with `cd <worktree> && git diff main...<branch>`.
 
 Never open anything under `solve/evals/hidden/`: it holds the graders for eval
 runs.
