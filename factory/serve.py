@@ -43,6 +43,12 @@ class Rejected(Exception):
 
 
 class Handler(SimpleHTTPRequestHandler):
+    def end_headers(self) -> None:
+        # Nothing here is meant to be framed; this stops clickjacking of the buttons.
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Content-Security-Policy", "frame-ancestors 'none'")
+        super().end_headers()
+
     def send_head(self):
         # The dashboard gets this run's token; every other file is served as is.
         if Path(self.translate_path(self.path)) != DASHBOARD:
@@ -95,7 +101,7 @@ class Handler(SimpleHTTPRequestHandler):
             raise Rejected(HTTPStatus.BAD_REQUEST, "body must be a JSON object")
 
         job = body.get("job")
-        if not isinstance(job, str) or not JOB_ID.match(job):
+        if not isinstance(job, str) or not JOB_ID.fullmatch(job):
             raise Rejected(HTTPStatus.NOT_FOUND, "unknown job")
         job_dir = FACTORY / "jobs" / job
         if not (job_dir / "job.json").is_file():
