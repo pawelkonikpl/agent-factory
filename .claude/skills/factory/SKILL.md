@@ -65,9 +65,10 @@ started or was handed.
 
 `<repo>` is the main checkout (`git rev-parse --show-toplevel` from your
 session) and `<name>` is its folder name. `factory/jobs/` and `factory/replans/`
-are gitignored runtime state that never lands in a commit. The spec is the one file that outlives it:
-the builder commits a copy to `specs/features/<job-id>.md` on the job branch, so
-it merges with the code it describes.
+are gitignored runtime state that never lands in a commit. The spec is the one
+job file that outlives them: the builder commits a copy to
+`specs/features/<job-id>.md` on the job branch, so it merges with the code it
+describes.
 
 ```
 <repo>/factory/backlog.md                      queue for /factory next
@@ -237,9 +238,9 @@ heading above it, its phase is that heading and goal line, joined with ` — `.
 
 The same as `/factory <feature>` and `/factory next`, with a human gate after
 the spec: run steps 1–3 (a `SPLIT` still goes to **Split**), then set
-`stage: "spec-review"` and stop. Tell the user
-the job id and the path of `spec.md`, and that they can edit it by hand, build it
-with `/factory go <job-id>`, or have the spec-writer revise it with
+`stage: "spec-review"` and stop. Tell the user the job id and the path of
+`spec.md`, and that they can edit it by hand, build it with
+`/factory go <job-id>`, or have the spec-writer revise it with
 `/factory rework <job-id> <note>`.
 
 ## /factory go <job-id>

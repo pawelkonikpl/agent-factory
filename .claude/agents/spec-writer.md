@@ -1,6 +1,6 @@
 ---
 name: spec-writer
-description: Factory step 1. Turns a one-line feature request into factory/jobs/<job-id>/spec.md with testable acceptance criteria.
+description: Factory step 1. Turns a one-line feature request into factory/jobs/<job-id>/spec.md with testable acceptance criteria, or splits a request that is several jobs into backlog items.
 tools: Read, Grep, Glob, Bash, Write
 model: opus
 ---
