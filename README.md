@@ -1,6 +1,6 @@
 # Software Factory for Claude Code
 
-A small, visual software factory built from one Claude Code skill, seven
+A small, visual software factory built from one Claude Code skill, eight
 subagents and plain markdown files. You type `/factory <feature>` and agents
 write a spec, build it on its own branch, review it from four angles, and either
 merge it to `main` or hand it to you.
@@ -27,6 +27,7 @@ yours.
     reviewer-ui.md               sonnet  writes round-N/review-ui.md
     reviewer-code.md             sonnet  writes round-N/review-code.md
     approver.md                  opus    writes decision.md
+    replanner.md                 opus    writes factory/replans/<date>.md (/factory replan)
 factory/
   backlog.md                     queue for /factory next
   dashboard.html                 the visual board
@@ -60,18 +61,26 @@ BUILD_PROMPT.md                  the prompt that built the original factory
 /factory approve <job-id>        merge a needs-human job into main
 /factory rework <job-id> <note>  send a job back with feedback: to the spec-writer
                                  from spec review, to the builder from needs-human
+/factory replan                  between jobs: propose changes to the roadmap,
+                                 the constitution and the factory itself
 ```
 
 Use `/factory plan` when the request leaves product decisions open, or when a
 wrong spec would be expensive. The job waits in **Spec review** on the
 dashboard; edit `spec.md` by hand if you like, then run `/factory go`.
 
+Run `/factory replan` every few jobs. The replanner reads the jobs finished since
+the last replan and proposes edits: backlog items that are done or too big,
+docs that merged work made stale, and review findings that keep recurring and
+belong in an earlier step. It edits nothing; you pick what gets applied.
+
 ## Use it in your repo
 
 1. Copy `.claude/` and `factory/` into your repo root.
 2. Delete the example jobs in `factory/jobs/` and the checked items in
    `factory/backlog.md`.
-3. Add `/factory/jobs/` to your `.gitignore`. Job folders are runtime state.
+3. Add `/factory/jobs/` and `/factory/replans/` to your `.gitignore`. They are
+   runtime state.
 4. Make sure your `AGENTS.md` (or `CLAUDE.md`) says how to set up a fresh
    checkout, start the dev server on a given port, and run your tests, build
    and lint. The agents carry nothing repo-specific; they read all of it from

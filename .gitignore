@@ -1,5 +1,6 @@
 node_modules/
 factory/jobs/
+factory/replans/
 
 # Python
 __pycache__/

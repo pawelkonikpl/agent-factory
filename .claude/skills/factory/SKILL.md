@@ -1,6 +1,6 @@
 ---
 name: factory
-description: Run the software factory. Use when the user types /factory <feature>, /factory next, /factory plan <feature|next>, /factory go <job-id>, /factory approve <job-id>, or /factory rework <job-id> <note>. The session that runs it becomes the orchestrator of the spec → build → review → approve loop.
+description: Run the software factory. Use when the user types /factory <feature>, /factory next, /factory plan <feature|next>, /factory go <job-id>, /factory approve <job-id>, /factory rework <job-id> <note>, or /factory replan. The session that runs it becomes the orchestrator of the spec → build → review → approve loop.
 ---
 
 # Factory
@@ -64,8 +64,8 @@ started or was handed.
 ## Files
 
 `<repo>` is the main checkout (`git rev-parse --show-toplevel` from your
-session) and `<name>` is its folder name. `factory/jobs/` is gitignored runtime
-state that never lands in a commit. The spec is the one file that outlives it:
+session) and `<name>` is its folder name. `factory/jobs/` and `factory/replans/`
+are gitignored runtime state that never lands in a commit. The spec is the one file that outlives it:
 the builder commits a copy to `specs/features/<job-id>.md` on the job branch, so
 it merges with the code it describes.
 
@@ -79,6 +79,7 @@ it merges with the code it describes.
 <repo>/factory/jobs/<job-id>/decision.md
 <repo>/../<name>-factory/<job-id>/             the job's worktree, on factory/<job-id>
 <worktree>/specs/features/<job-id>.md          the spec, committed by the builder
+<repo>/factory/replans/<YYYY-MM-DD>.md         replanner's proposals, from /factory replan
 ```
 
 ### job.json
@@ -243,6 +244,22 @@ The job must be in `spec-review` or `needs-human`. Write the note, verbatim, to
      `<paths> Rework: read rework-<k>.md and address it, then update build.md for round N+1. Port: <port>.`
      (`N` is the job's last round.) A rework run gets a fresh `MAX_RESUMES`.
   3. Continue from **Build check**, exactly like a new job.
+
+## /factory replan
+
+Replanning happens between jobs, so this command has no job and no `job.json`.
+
+1. `mkdir -p factory/replans`. The replan file is
+   `factory/replans/<YYYY-MM-DD>.md` with today's date, plus `-2`, `-3`, … when
+   that name is taken.
+2. Spawn `replanner` with the prompt
+   `Main checkout: <repo>. Replan file: <repo>/factory/replans/<name>.md.`
+   When it finishes, check that the file exists and its first line starts with
+   `Jobs:`. If not, stop and tell the user.
+3. Show the user the summary and a numbered one-line list of the proposals, and
+   ask which to apply. Make only the edits the user picks, in the main checkout,
+   and leave them uncommitted for the user to review. This is the one place you
+   edit files other than `job.json` and the backlog.
 
 ## Reporting
 
