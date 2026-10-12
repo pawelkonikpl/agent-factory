@@ -5,7 +5,7 @@ CONTAINER_ENGINE ?= podman
 COMPOSE = $(CONTAINER_ENGINE) compose -f keycloak/docker-compose.yml
 SANDBOX = $(CONTAINER_ENGINE) compose -f compose.yaml
 
-.PHONY: help dashboard backend web web-build docker-up docker-down docker-logs sandbox-up sandbox-down sandbox-logs
+.PHONY: help dashboard backend web web-build docker-up docker-down docker-logs sandbox-up sandbox-down sandbox-logs solve-selftest
 
 help: ## List the targets
 	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-12s %s\n", $$1, $$2}'
@@ -48,3 +48,6 @@ sandbox-down: ## Stop and remove the sandbox containers
 
 sandbox-logs: ## Follow the sandbox services' logs until Ctrl-C
 	$(SANDBOX) logs -f
+
+solve-selftest: ## Check the /solve eval graders: each fails on its case and passes with the reference fix
+	bash solve/evals/selftest.sh

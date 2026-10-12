@@ -1,0 +1,15 @@
+diff --git a/solve/evals/cases/email-redos/validator.py b/solve/evals/cases/email-redos/validator.py
+index 7db98b9..032a07c 100644
+--- a/solve/evals/cases/email-redos/validator.py
++++ b/solve/evals/cases/email-redos/validator.py
+@@ -2,7 +2,9 @@
+ 
+ import re
+ 
+-EMAIL = re.compile(r"^([A-Za-z0-9]+[._-]?)+@([A-Za-z0-9-]+\.)+[A-Za-z]{2,}$")
++# Each separator must be followed by a letter or digit (or end the local part),
++# so the pattern cannot split a run of characters in more than one way.
++EMAIL = re.compile(r"^[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*[._-]?@(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}$")
+ 
+ 
+ def is_valid_email(address):

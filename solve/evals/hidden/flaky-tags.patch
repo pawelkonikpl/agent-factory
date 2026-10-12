@@ -1,0 +1,11 @@
+diff --git a/solve/evals/cases/flaky-tags/tags.py b/solve/evals/cases/flaky-tags/tags.py
+index 20c9b06..3978c03 100644
+--- a/solve/evals/cases/flaky-tags/tags.py
++++ b/solve/evals/cases/flaky-tags/tags.py
+@@ -7,4 +7,5 @@ def normalize_tags(raw):
+     Tags are trimmed and lowercased, empty tags are dropped, and duplicates are
+     removed keeping the first occurrence, so the order follows the input.
+     """
+-    return list({tag.strip().lower() for tag in raw.split(",") if tag.strip()})
++    # dict keeps insertion order; a set's order changes with hash randomisation.
++    return list(dict.fromkeys(tag.strip().lower() for tag in raw.split(",") if tag.strip()))

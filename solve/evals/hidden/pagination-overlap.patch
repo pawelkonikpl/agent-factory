@@ -1,0 +1,14 @@
+diff --git a/solve/evals/cases/pagination-overlap/pager.py b/solve/evals/cases/pagination-overlap/pager.py
+index b566b03..502dee3 100644
+--- a/solve/evals/cases/pagination-overlap/pager.py
++++ b/solve/evals/cases/pagination-overlap/pager.py
+@@ -8,8 +8,7 @@ def page(items, number, size):
+     """
+     if number < 1 or size < 1:
+         raise ValueError("number and size must be positive")
+-    previous_end = (number - 1) * size - 1  # index of the last item on the previous page
+-    start = max(previous_end, 0)
++    start = (number - 1) * size
+     return items[start : start + size]
+ 
+ 

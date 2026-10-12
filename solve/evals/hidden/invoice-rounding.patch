@@ -1,0 +1,22 @@
+diff --git a/solve/evals/cases/invoice-rounding/invoice.py b/solve/evals/cases/invoice-rounding/invoice.py
+index ba36873..a5e4e71 100644
+--- a/solve/evals/cases/invoice-rounding/invoice.py
++++ b/solve/evals/cases/invoice-rounding/invoice.py
+@@ -1,5 +1,7 @@
+ """Invoice totals."""
+ 
++from decimal import ROUND_HALF_UP, Decimal
++
+ 
+ def invoice_total(lines, vat_rate):
+     """Gross total of an invoice as a string with two decimals.
+@@ -8,6 +10,6 @@ def invoice_total(lines, vat_rate):
+     as "19.99", and `vat_rate` is a string such as "0.23". VAT is added to the
+     net sum of the whole invoice and the result is rounded half up to the grosz.
+     """
+-    net = sum(float(price) * quantity for price, quantity in lines)
+-    gross = net * (1 + float(vat_rate))
+-    return f"{round(gross, 2):.2f}"
++    net = sum((Decimal(price) * quantity for price, quantity in lines), Decimal("0"))
++    gross = net * (1 + Decimal(vat_rate))
++    return str(gross.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))

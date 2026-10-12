@@ -1,5 +1,7 @@
 node_modules/
 factory/jobs/
+solve/jobs/
+solve/evals/runs/
 
 # Python
 __pycache__/

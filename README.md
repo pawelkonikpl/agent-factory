@@ -114,3 +114,76 @@ If you are copying this folder as a template, ignore it.
 The factory has grown since then: it now runs each job in its own git worktree
 and gives every job its own `job.json`, instead of the single `board.json` the
 prompt describes, so several jobs can run at once.
+
+## Problem solver
+
+`/solve` is a second loop, next to the factory, for technical problems that
+need a diagnosis rather than a feature: a bug, a failing or flaky test, a
+performance problem, or a technical question that needs an answer backed by
+evidence. It is one more skill and six more subagents, in the same style as
+the factory.
+
+```
+problem → analyst → brief.md (success criteria + checks, effort)
+        → investigators (0–4, in parallel) → findings with numbered claims
+        → solvers (1, or 3 with different approaches) → candidate branches
+        → per candidate: verifier ∥ critic → PASS + STANDS = accepted
+        → none accepted: resume the solvers (at most 3 rounds)
+        → synthesizer → answer.md (answer, confidence, evidence) + lessons.md
+```
+
+```
+.claude/
+  skills/solve/SKILL.md            the orchestrator: runs the loop, writes job.json
+  agents/
+    solve-analyst.md               opus    writes brief.md
+    solve-investigator.md          sonnet  writes findings-q<n>.md
+    solve-solver.md                opus    commits on solve/<job-id>/c<k>, writes candidate-c<k>.md
+    solve-verifier.md              sonnet  writes round-N/verify-c<k>.md
+    solve-critic.md                opus    writes round-N/critique-c<k>.md
+    solve-synthesizer.md           opus    writes answer.md and lessons.md
+solve/
+  evals/cases/<case-id>/           eval cases: problem.md plus the code
+  evals/hidden/<case-id>.{sh,patch} graders and reference fixes (agents never read these)
+  evals/selftest.sh                checks the graders themselves
+  jobs/                            one folder per job (gitignored)
+```
+
+The design follows what research on LLM agents shows. A model rarely corrects
+its own reasoning without outside feedback, so a fresh verifier runs the checks
+and a critic tries to refute every candidate. Success criteria are written
+before anyone solves. One solver is the default: several candidates pay off
+only when a problem has several defensible answers, and extra agents make
+step-by-step problems worse. Agents never talk to each other; they exchange
+files through the orchestrator.
+
+### Commands
+
+```
+/solve <problem>                 run a job through the loop
+/solve apply <job-id> [c<k>]     merge the chosen candidate into main, then clean up
+/solve clean <job-id>            remove the job's worktrees and branches
+/solve eval [case-id]            run the eval cases through the full loop and grade them
+/solve eval --baseline           the same with one solver and no verification loop
+```
+
+Each candidate gets its own worktree in `../<repo>-solve/<job-id>/c<k>/` on a
+`solve/<job-id>/c<k>` branch. The solver never merges: you decide with
+`/solve apply`. Each agent's model is set in its file's frontmatter; change it
+there.
+
+### Evals
+
+`make solve-selftest` checks that every grader fails on its case and passes
+with its reference fix. `/solve eval --baseline` followed by `/solve eval`
+shows whether the full loop beats one solver working alone on the same cases.
+Reports go to `solve/evals/runs/`, which is gitignored so a report never blocks
+a `/factory` or `/solve` merge; keep one with `git add -f`.
+
+The five cases are seeds. To add one, create `solve/evals/cases/<case-id>/`
+with a `problem.md` written the way a user would report it, plus the code, and
+add a grader `solve/evals/hidden/<case-id>.sh <checkout-root>` that exits 0
+when the case is solved. Add the reference fix as `<case-id>.patch` (a
+`git diff` from the repo root), then run `make solve-selftest`. Commit cases on
+`main` before running evals. Graders stay hidden only because agents are told
+not to read them.

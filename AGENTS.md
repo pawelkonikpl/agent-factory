@@ -11,6 +11,7 @@ OAuth/OIDC Backend-for-Frontend demo plus the software factory that builds on it
 - `compose.yaml` (root): the dev-only sandbox that runs the whole stack in containers, built from the `Containerfile` in each of `api/`, `bff/` and `web/`.
 - `.devcontainer/`: dev-only coding environment (dev container plus Keycloak), see "Dev container".
 - `.claude/`, `factory/`: the software factory (skill, agents, dashboard, backlog). See README.md.
+- `.claude/skills/solve/`, `.claude/agents/solve-*.md`, `solve/`: the problem solver (`/solve`), with its eval cases in `solve/evals/cases/`. Its job state in `solve/jobs/` is gitignored. Agents must never open `solve/evals/hidden/`: it holds the eval graders. See README.md.
 
 ## Setup (fresh checkout)
 
@@ -136,3 +137,15 @@ In `web/`:
 ```bash
 npm run build
 ```
+
+For the problem solver's eval set (needs only `python3`, `git` and `bash`):
+
+```bash
+cd solve/evals/cases/<case-id> && python3 -m unittest # one case's visible tests
+make solve-selftest                                   # only after adding or editing an eval case
+```
+
+`make solve-selftest` checks that every grader fails on its case as committed
+and passes with the reference fix. In a checkout where a case has been fixed,
+such as a `/solve` candidate branch for an eval job, it reports that case as
+FAIL by design, so it is not a regression check for `/solve` jobs.

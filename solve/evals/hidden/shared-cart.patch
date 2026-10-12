@@ -1,0 +1,16 @@
+diff --git a/solve/evals/cases/shared-cart/cart.py b/solve/evals/cases/shared-cart/cart.py
+index 6ca8fbd..9789256 100644
+--- a/solve/evals/cases/shared-cart/cart.py
++++ b/solve/evals/cases/shared-cart/cart.py
+@@ -2,9 +2,9 @@
+ 
+ 
+ class Cart:
+-    def __init__(self, owner, items=[]):
++    def __init__(self, owner, items=None):
+         self.owner = owner
+-        self.items = items
++        self.items = list(items) if items is not None else []
+ 
+     def add(self, sku, quantity=1):
+         if quantity < 1:
