@@ -1,6 +1,6 @@
 ---
 name: factory
-description: Run the software factory. Use when the user types /factory <feature>, /factory next, /factory plan <feature|next>, /factory go <job-id>, /factory approve <job-id>, /factory rework <job-id> <note>, or /factory replan. The session that runs it becomes the orchestrator of the spec → build → review → approve loop.
+description: Run the software factory. Use when the user types /factory <feature>, /factory next, /factory plan <feature|next>, /factory go <job-id>, /factory approve <job-id>, /factory rework <job-id> <note>, /factory init, or /factory replan. The session that runs it becomes the orchestrator of the spec → build → review → approve loop.
 ---
 
 # Factory
@@ -244,6 +244,20 @@ The job must be in `spec-review` or `needs-human`. Write the note, verbatim, to
      `<paths> Rework: read rework-<k>.md and address it, then update build.md for round N+1. Port: <port>.`
      (`N` is the job's last round.) A rework run gets a fresh `MAX_RESUMES`.
   3. Continue from **Build check**, exactly like a new job.
+
+## /factory init
+
+Run once, after the factory is copied into a repo. It drafts the parts of the
+repo's constitution that are missing: `AGENTS.md`, `specs/mission.md` and
+roadmap phases in `factory/backlog.md`. Like `/factory replan`, it has no job.
+
+1. If `AGENTS.md` (or `CLAUDE.md`) and `specs/mission.md` exist, and the backlog
+   has `## ` headings or no unchecked items, say there is nothing to draft and
+   stop.
+2. Spawn `constitution-writer` with the prompt `Main checkout: <repo>.`
+3. Relay its final message: the files it wrote, the commands it couldn't verify
+   and its questions. The drafts stay uncommitted. Tell the user to read and
+   correct them before committing, since every later spec rests on them.
 
 ## /factory replan
 
