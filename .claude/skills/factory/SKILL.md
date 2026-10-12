@@ -67,6 +67,7 @@ state that never lands in a commit.
 <repo>/factory/jobs/<job-id>/rework-<k>.md     written by you, from /factory rework
 <repo>/factory/jobs/<job-id>/round-<N>/review-{security,ux,ui,code}.md
 <repo>/factory/jobs/<job-id>/decision.md
+<repo>/factory/jobs/<job-id>/human-request.json  written by the dashboard server (factory/serve.py), consumed by you
 <repo>/../<name>-factory/<job-id>/             the job's worktree, on factory/<job-id>
 ```
 
@@ -186,7 +187,24 @@ printed. Never push.
 
 Set `stage: "needs-human"`. The branch and its worktree stay for the human to
 inspect. Tell the user which job is waiting, give the worktree path, and quote
-`decision.md` (or the BLOCKED reason from `build.md`).
+`decision.md` (or the BLOCKED reason from `build.md`). They can answer with
+`/factory approve` / `/factory rework`, or with the Approve / Rework buttons on
+the job's card in the dashboard (`make dashboard`, which runs `factory/serve.py`).
+
+Then wait for `factory/jobs/<job-id>/human-request.json` to appear (for example
+Monitor with an until-loop on the file, or /loop). The dashboard server only
+writes that file; it never merges. When it appears, read it, delete it, then act
+on its content:
+
+- `{"action":"approve"}`: run the **/factory approve <job-id>** steps.
+- `{"action":"rework","note":"<note>"}`: run the **/factory rework <job-id> <note>**
+  steps with the file's `note`, verbatim.
+- Anything else: tell the user what the file held. The job stays in
+  `needs-human`; wait for the next file.
+
+If the user types `/factory approve` or `/factory rework` for the job instead,
+stop waiting and run it as usual. If the action leaves the job in `needs-human`
+again (the main checkout is busy, for example), wait for a new file.
 
 ## /factory next
 
