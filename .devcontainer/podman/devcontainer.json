@@ -8,6 +8,11 @@
     "ghcr.io/devcontainers/features/node:1": { "version": "22" }
   },
   "remoteUser": "vscode",
+  "customizations": {
+    "vscode": {
+      "extensions": ["anthropic.claude-code"]
+    }
+  },
   // compose.yaml already maps the host user to vscode (UID 1000).
   "updateRemoteUserUID": false,
   // The redirect URI and the issuer are fixed to these localhost ports, so the
@@ -17,5 +22,6 @@
     "5173": { "label": "web", "requireLocalPort": true },
     "8080": { "label": "Keycloak", "requireLocalPort": true }
   },
-  "postCreateCommand": "bash .devcontainer/post-create.sh"
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "postStartCommand": "bash .devcontainer/post-start.sh"
 }

@@ -90,7 +90,10 @@ Containers client, such as VS Code with the Dev Containers extension ("Dev
 Containers: Reopen in Container"). VS Code asks which configuration to use: "OAuth
 BFF demo" for Docker, "OAuth BFF demo (Podman)" for Podman.
 
-Inside the container, each command in its own terminal:
+The API, the BFF and the web dev server start in the background on every start of
+the container (`.devcontainer/post-start.sh`). Logs: `/tmp/dev-backend.log` and
+`/tmp/dev-web.log`. To restart them, stop them with `pkill -f uvicorn; pkill -f vite`
+and run the script again, or run each in its own terminal:
 
 ```bash
 make backend    # API and BFF
