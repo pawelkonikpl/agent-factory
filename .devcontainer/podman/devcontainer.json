@@ -17,5 +17,10 @@
     "5173": { "label": "web", "requireLocalPort": true },
     "8080": { "label": "Keycloak", "requireLocalPort": true }
   },
-  "postCreateCommand": "bash .devcontainer/post-create.sh"
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": ["anthropic.claude-code"]
+    }
+  }
 }
