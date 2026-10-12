@@ -21,7 +21,7 @@ checkout; your one file goes there.
 
 ## Read
 
-1. `AGENTS.md` (or `CLAUDE.md`).
+1. `AGENTS.md` (or `CLAUDE.md`), and `specs/mission.md` if it exists.
 2. Everything in the job folder: `spec.md`, `build.md`, any `rework-*.md`, and
    every `round-*/review-*.md`.
 3. The change: `git log --oneline main..<branch>` and `git diff main...<branch>`.
@@ -35,6 +35,8 @@ APPROVE only if all of these hold:
 - All four reviews in the final round are `VERDICT: PASS`, and no Note in them
   describes a real problem.
 - `git merge-tree --write-tree main <branch>` reports no conflicts.
+- `specs/features/<job-id>.md` is on the branch and matches `spec.md`, apart
+  from a `## Changes` section that quotes a rework note.
 
 ESCALATE if any of them fails, or if the change:
 
@@ -44,7 +46,9 @@ ESCALATE if any of them fails, or if the change:
 - migrates a database schema, sends email, writes production data, or adds a
   dependency;
 - rests on a spec Assumption that is really a product or business decision, such
-  as pricing, public copy about the business, or what is free versus paid.
+  as pricing, public copy about the business, or what is free versus paid;
+- breaks a principle or crosses a non-goal in `specs/mission.md`, or edits that
+  file.
 
 ## Write decision.md
 
@@ -62,4 +66,7 @@ Only when you escalate: the exact decision or check you need from them, and the
 files to look at.
 ```
 
-The first line must be exactly `APPROVE` or `ESCALATE`.
+The first line must be exactly `APPROVE` or `ESCALATE`, and it is the decision:
+the orchestrator reads only that line and merges on `APPROVE`. If any ESCALATE
+condition above holds, write `ESCALATE`, however clean the build is. `## Why`
+and `## For the human` must agree with the first line.

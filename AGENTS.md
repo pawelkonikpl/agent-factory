@@ -11,6 +11,7 @@ OAuth/OIDC Backend-for-Frontend demo plus the software factory that builds on it
 - `compose.yaml` (root): the dev-only sandbox that runs the whole stack in containers, built from the `Containerfile` in each of `api/`, `bff/` and `web/`.
 - `.devcontainer/`: dev-only coding environment (dev container plus Keycloak), see "Dev container".
 - `.claude/`, `factory/`: the software factory (skill, agents, dashboard served by `factory/serve.py`, backlog). See README.md.
+- `specs/`: `mission.md` (why the repo exists, its principles and non-goals; read it before planning a feature) and `features/` (one spec per factory job, `<job-id>.md`, committed with the code it describes). The roadmap is `factory/backlog.md`.
 
 ## Setup (fresh checkout)
 
@@ -53,6 +54,14 @@ Ctrl-C stops both), `make web` (web dev server, port 5173), `make web-build`
   `cd web && npm run dev -- --port <port>`. Signing in only works on 5173, the
   redirect URI registered in `keycloak/realm-demo.json`. The page needs the BFF on
   8000 (the Vite proxy target) to get past "checking session".
+- To look at signed-in pages without Keycloak, the BFF or a sign-in, stub the
+  SPA's requests in the browser (for example with `agent-browser network route`):
+  `GET /bff/session` returns
+  `{"authenticated":true,"user":{"sub":"alice","name":"Alice Example","email":"alice@example.com"}}`,
+  `GET /api/notes` returns `[]` or
+  `[{"id":"1","text":"Notatka","created_at":"2026-10-10T15:03:00+02:00"}]`, and
+  `POST /bff/logout` returns `{"logout_url":"http://localhost:5173/"}` (abort it
+  to see the logout error).
 - The factory dashboard (`make dashboard` or `python3 factory/serve.py`) defaults
   to port 8000 and collides with the BFF. While the BFF runs, serve it on
   another port: `make dashboard DASHBOARD_PORT=8090` or
@@ -90,7 +99,10 @@ Containers client, such as VS Code with the Dev Containers extension ("Dev
 Containers: Reopen in Container"). VS Code asks which configuration to use: "OAuth
 BFF demo" for Docker, "OAuth BFF demo (Podman)" for Podman.
 
-Inside the container, each command in its own terminal:
+The API, the BFF and the web dev server start in the background on every start of
+the container (`.devcontainer/post-start.sh`). Logs: `/tmp/dev-backend.log` and
+`/tmp/dev-web.log`. To restart them, stop them with `pkill -f uvicorn; pkill -f vite`
+and run the script again, or run each in its own terminal:
 
 ```bash
 make backend    # API and BFF

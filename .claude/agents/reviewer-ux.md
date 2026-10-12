@@ -33,8 +33,12 @@ server from AGENTS.md in the worktree, in the background, on your port.
 
 Then use the `agent-browser` CLI (run `agent-browser skills get core` first).
 Pass `--session <job-id>-ux` on every `agent-browser` call, so other jobs'
-reviewers never drive your browser. Don't sign in or submit forms: the dev
-server may talk to real services. When you're done, run
+reviewers never drive your browser. Don't sign in, and submit forms only when
+their request is stubbed: the dev server may talk to real services. When the
+change shows only to a signed-in user or after a failed request, stub the
+requests the page makes with `agent-browser network route` (AGENTS.md may give
+the responses) and use it that way. Review from the code alone only when you
+can't make the page show the change, and say so in Notes. When you're done, run
 `agent-browser --session <job-id>-ux close` and stop the dev server.
 
 ## What to look for

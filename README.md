@@ -1,6 +1,6 @@
 # Software Factory for Claude Code
 
-A small, visual software factory built from one Claude Code skill, seven
+A small, visual software factory built from one Claude Code skill, nine
 subagents and plain markdown files. You type `/factory <feature>` and agents
 write a spec, build it on its own branch, review it from four angles, and either
 merge it to `main` or hand it to you.
@@ -27,6 +27,8 @@ yours.
     reviewer-ui.md               sonnet  writes round-N/review-ui.md
     reviewer-code.md             sonnet  writes round-N/review-code.md
     approver.md                  opus    writes decision.md
+    replanner.md                 opus    writes factory/replans/<date>.md (/factory replan)
+    constitution-writer.md       opus    drafts AGENTS.md, specs/mission.md, backlog phases (/factory init)
 factory/
   backlog.md                     queue for /factory next
   dashboard.html                 the visual board
@@ -44,6 +46,12 @@ BUILD_PROMPT.md                  the prompt that built the original factory
   `VERDICT: CHANGES`; `decision.md` starts with `APPROVE` or `ESCALATE`.
 - The four reviewers run in parallel. A round is done only when all four files
   exist. If any says CHANGES, the same builder is resumed (at most twice).
+- The builder's first commit is the spec, at `specs/features/<job-id>.md`, so
+  every merged feature keeps its spec in the repo next to its code. The rest of
+  the job folder is runtime state that stays out of git.
+- When a request is really several jobs, the spec-writer splits it: it lists
+  them as backlog items instead of writing a spec, and the factory adds them to
+  `factory/backlog.md` for `/factory next`.
 - Each job gets its own git worktree next to your repo
   (`../<repo>-factory/<job-id>/`) on a `factory/<job-id>` branch. Open several
   Claude sessions and run `/factory` in each to build features in parallel.
@@ -53,20 +61,40 @@ BUILD_PROMPT.md                  the prompt that built the original factory
 ```
 /factory <feature>               run a new job through the loop
 /factory next                    run the first unchecked item in factory/backlog.md
+/factory plan <feature|next>     the same, but stop after the spec for you to read it
+/factory go <job-id>             build a job whose spec you have read
 /factory approve <job-id>        merge a needs-human job into main
-/factory rework <job-id> <note>  send a needs-human job back to the builder with feedback
+/factory rework <job-id> <note>  send a job back with feedback: to the spec-writer
+                                 from spec review, to the builder from needs-human
+/factory init                    once per repo: draft the missing constitution
+/factory replan                  between jobs: propose changes to the roadmap,
+                                 the constitution and the factory itself
 ```
+
+Use `/factory plan` when the request leaves product decisions open, or when a
+wrong spec would be expensive. The job waits in **Spec review** on the
+dashboard; edit `spec.md` by hand if you like, then run `/factory go`.
+
+Run `/factory replan` every few jobs. The replanner reads the jobs finished since
+the last replan and proposes edits: backlog items that are done or too big,
+docs that merged work made stale, and review findings that keep recurring and
+belong in an earlier step. It edits nothing; you pick what gets applied.
 
 ## Use it in your repo
 
 1. Copy `.claude/` and `factory/` into your repo root.
 2. Delete the example jobs in `factory/jobs/` and the checked items in
    `factory/backlog.md`.
-3. Add `/factory/jobs/` to your `.gitignore`. Job folders are runtime state.
-4. Make sure your `AGENTS.md` (or `CLAUDE.md`) says how to set up a fresh
-   checkout, start the dev server on a given port, and run your tests, build
-   and lint. The agents carry nothing repo-specific; they read all of it from
-   there.
+3. Add `/factory/jobs/` and `/factory/replans/` to your `.gitignore`. They are
+   runtime state.
+4. Run `/factory init`. It drafts, from your code, whatever is missing of the
+   repo's constitution: `AGENTS.md` (how to set up a fresh checkout, start the
+   dev server on a given port, and run your tests, build and lint),
+   `specs/mission.md` (why the repo exists, its principles and non-goals) and
+   phases in `factory/backlog.md` (a `## ` heading with the goal below it).
+   Read and correct the drafts. The agents carry nothing repo-specific; they
+   read all of it from there. The spec-writer keeps specs within the mission
+   and the approver escalates any change that breaks it.
 5. Install the [`agent-browser`](https://github.com/vercel-labs/agent-browser)
    CLI if your project has pages to look at. The builder and the UX and UI
    reviewers use it to check the running app.

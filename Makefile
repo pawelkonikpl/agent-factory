@@ -17,8 +17,8 @@ dashboard: ## Serve the factory dashboard (Approve / Rework buttons) on 127.0.0.
 # Ctrl-C, the shell stops the other one, so no uvicorn is left behind. A server
 # that exits on its own is an error, so make reports it.
 backend: ## Run the API (port 8001) and the BFF (port 8000); Ctrl-C stops both
-	@(cd api && exec uv run uvicorn app.main:create_app --factory --port 8001) & api=$$!; \
-	(cd bff && exec uv run uvicorn app.main:create_app --factory --port 8000) & bff=$$!; \
+	@(cd api && exec uv run uvicorn app.main:create_app --factory --port 8001 --reload --reload-dir app) & api=$$!; \
+	(cd bff && exec uv run uvicorn app.main:create_app --factory --port 8000 --reload --reload-dir app) & bff=$$!; \
 	trap 'kill $$api $$bff 2>/dev/null' INT TERM; \
 	while kill -0 $$api 2>/dev/null && kill -0 $$bff 2>/dev/null; do sleep 1; done; \
 	kill $$api $$bff 2>/dev/null; wait; exit 1

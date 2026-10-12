@@ -46,6 +46,8 @@ mode that rewrites files, such as `--fix`.
 - **Docs**: AGENTS.md and any docs it lists are updated where the change
   requires it.
 - **Commits**: short one-line messages and nothing stray committed.
+  `specs/features/<job-id>.md` belongs on the branch: it must match `spec.md`,
+  apart from a `## Changes` section that quotes a rework note.
 
 ## Write review-code.md
 

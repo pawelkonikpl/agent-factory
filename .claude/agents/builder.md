@@ -59,6 +59,12 @@ command you ran and its result, or what the page showed.
 
 ## Commit
 
+- In round 1, before any other commit, copy `<job folder>/spec.md` to
+  `<worktree>/specs/features/<job-id>.md` (`<job-id>` is the job folder's name)
+  and commit it alone. It merges with the code, so the spec stays in the repo
+  after the job folder is gone. Don't change it later, except when a rework note
+  changes a requirement or acceptance criterion: then add the note, verbatim,
+  under a `## Changes` heading at the end of the copy, and commit that.
 - Commit on the job branch with short one-line messages in the style of
   `git log --oneline`. One commit per distinct piece of work.
 - Stage explicit paths, never `git add -A`. Leave the tree clean: `git status

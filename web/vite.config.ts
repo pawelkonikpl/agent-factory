@@ -10,6 +10,9 @@ const BFF_URL = "http://localhost:8000";
 export default defineConfig({
   plugins: [react()],
   server: {
+    // IPv4, not Node's default "localhost" (which can bind only ::1): the dev
+    // container's port forward connects to 127.0.0.1.
+    host: "127.0.0.1",
     port: 5173,
     strictPort: true,
     proxy: {

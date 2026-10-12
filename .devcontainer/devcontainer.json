@@ -7,6 +7,11 @@
     "ghcr.io/devcontainers/features/node:1": { "version": "22" }
   },
   "remoteUser": "vscode",
+  "customizations": {
+    "vscode": {
+      "extensions": ["anthropic.claude-code"]
+    }
+  },
   // The redirect URI and the issuer are fixed to these localhost ports, so the
   // client must fail rather than forward them to other ports.
   "forwardPorts": [5173, 8080],
@@ -15,9 +20,5 @@
     "8080": { "label": "Keycloak", "requireLocalPort": true }
   },
   "postCreateCommand": "bash .devcontainer/post-create.sh",
-  "customizations": {
-    "vscode": {
-      "extensions": ["anthropic.claude-code"]
-    }
-  }
+  "postStartCommand": "bash .devcontainer/post-start.sh"
 }
