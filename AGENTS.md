@@ -205,4 +205,11 @@ In `web/`:
 
 ```bash
 bun run build
+bun run test
 ```
+
+`bun run test` runs Vitest with jsdom and Testing Library on the `*.test.ts(x)` files in
+`web/src`, with `fetch` stubbed, so no backend has to run. It runs Vitest on Node, not on
+bun, so it needs `node` on PATH in jsdom 30's range: 22.22.2 or newer on 22, 24.15 or
+newer on 24, or 26 and later. The dev container has it. `bun test` is bun's own test
+runner, not Vitest, and fails on these tests.
