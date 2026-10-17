@@ -12,7 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.clock import Clock
 from app.config import Settings
 from app.errors import InvalidTokenError
+from app.repositories.category_repository import CategoryRepository
 from app.repositories.note_repository import NoteRepository
+from app.services.category_service import CategoryService
 from app.services.note_service import NoteService
 from app.services.token_verifier import AccessTokenVerifier, Principal
 
@@ -68,3 +70,10 @@ async def get_session(container: ContainerDep) -> AsyncIterator[AsyncSession]:
 PrincipalDep = Annotated[Principal, Depends(get_principal)]
 NoteServiceDep = Annotated[NoteService, Depends(get_note_service)]
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
+
+
+def get_category_service(session: SessionDep) -> CategoryService:
+    return CategoryService(CategoryRepository(session))
+
+
+CategoryServiceDep = Annotated[CategoryService, Depends(get_category_service)]
