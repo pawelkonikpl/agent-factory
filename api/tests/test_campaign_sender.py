@@ -5,8 +5,9 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import Settings
-from app.errors import BusinessRuleError
+from app.errors import BusinessRuleError, NotFoundError
 from app.main import create_app
+from app.models.base import utc_now
 from app.models.campaign import Campaign, CampaignStatus, RecipientStatus
 from app.models.client import Client
 from app.models.email import Email, EmailStatus
@@ -168,6 +169,110 @@ async def test_start_on_a_failed_campaign_resets_only_its_failed_recipients(
     assert [r.status for r in saved.recipients if r.is_deleted] == [RecipientStatus.FAILED]
 
 
+async def failed(session: AsyncSession) -> Campaign:
+    """A failed campaign: Acme sent, Beta and Gamma failed."""
+    clients = [await add_client(session, name) for name in ("Acme", "Beta", "Gamma")]
+    campaign = await create(session, clients)
+    sent, *failed = campaign.recipients
+    sent.status = RecipientStatus.SENT
+    sent.sent_at = utc_now()
+    for recipient in failed:
+        recipient.status = RecipientStatus.FAILED
+        recipient.error = "SMTP error: busy"
+    campaign.status = CampaignStatus.FAILED
+    await session.commit()
+    return campaign
+
+
+async def test_start_with_ids_resets_only_the_chosen_failed_recipients(
+    sender: CampaignSender,
+    session: AsyncSession,
+    smtp_configs: SmtpConfigService,
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    await save_smtp(smtp_configs)
+    campaign = await failed(session)
+    _, beta, _ = campaign.recipients
+    beta.sent_at = utc_now()
+    await session.commit()
+
+    started, _ = await sender.start(campaign.id, "alice", [beta.id, beta.id])
+
+    assert started.status == CampaignStatus.SENDING
+    saved, _ = await stored(session_factory, campaign.id)
+    assert saved.status == CampaignStatus.SENDING
+    assert recipient_states(saved) == {
+        "biuro@acme.example": (RecipientStatus.SENT, None),
+        "biuro@beta.example": (RecipientStatus.PENDING, None),
+        "biuro@gamma.example": (RecipientStatus.FAILED, "SMTP error: busy"),
+    }
+    saved_beta = next(r for r in saved.recipients if r.id == beta.id)
+    assert saved_beta.sent_at is None
+
+
+async def test_start_with_ids_on_a_draft_raises(
+    sender: CampaignSender, session: AsyncSession, smtp_configs: SmtpConfigService
+) -> None:
+    await save_smtp(smtp_configs)
+    campaign = await create(session, [await add_client(session, "Acme")])
+
+    for ids in ([campaign.recipients[0].id], []):
+        with pytest.raises(BusinessRuleError) as raised:
+            await sender.start(campaign.id, "alice", ids)
+        assert str(raised.value) == "Only failed campaigns can be resent"
+
+
+async def test_start_with_bad_ids_raises_and_changes_nothing(
+    sender: CampaignSender,
+    session: AsyncSession,
+    smtp_configs: SmtpConfigService,
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    await save_smtp(smtp_configs)
+    campaign = await failed(session)
+    acme, beta, gamma = campaign.recipients
+    gamma.is_deleted = True
+    other = await create(session, [await add_client(session, "Delta")])
+    await session.commit()
+    foreign = other.recipients[0].id
+    cases = [
+        (
+            [999999, beta.id, foreign, gamma.id, acme.id, 999999],
+            "Recipients not found in campaign: "
+            + ", ".join(str(i) for i in sorted([gamma.id, foreign, 999999])),
+        ),
+        ([beta.id, acme.id, acme.id], f"Can only resend failed recipients: {acme.id}"),
+        ([], "Campaign has no pending recipients"),
+    ]
+
+    for ids, message in cases:
+        with pytest.raises(BusinessRuleError) as raised:
+            await sender.start(campaign.id, "alice", ids)
+        assert str(raised.value) == message
+
+    saved, _ = await stored(session_factory, campaign.id)
+    assert saved.status == CampaignStatus.FAILED
+    assert recipient_states(saved) == {
+        "biuro@acme.example": (RecipientStatus.SENT, None),
+        "biuro@beta.example": (RecipientStatus.FAILED, "SMTP error: busy"),
+    }
+
+
+async def test_start_with_ids_checks_the_status_first(
+    sender: CampaignSender, session: AsyncSession
+) -> None:
+    campaign = await failed(session)
+    campaign.status = CampaignStatus.SENT
+    await session.commit()
+
+    with pytest.raises(BusinessRuleError) as raised:
+        await sender.start(campaign.id, "alice", [999999])
+
+    assert str(raised.value) == "Campaign cannot be sent — current status: sent"
+    with pytest.raises(NotFoundError):
+        await sender.start(999999, "alice", [999999])
+
+
 async def test_start_that_loses_the_race_changes_nothing(
     sender: CampaignSender,
     session: AsyncSession,
@@ -190,9 +295,7 @@ async def test_start_that_loses_the_race_changes_nothing(
             await other.commit()
         return await read_config(user_sub)
 
-    monkeypatch.setattr(
-        smtp_configs, "get_smtp_config_for_sending", read_config_then_lose_the_race
-    )
+    monkeypatch.setattr(smtp_configs, "get_smtp_config_for_sending", read_config_then_lose_the_race)
 
     with pytest.raises(BusinessRuleError) as raised:
         await sender.start(campaign.id, "alice")

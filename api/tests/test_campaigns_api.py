@@ -81,6 +81,7 @@ CAMPAIGN_BODY = {"name": "Jesień", "subject": "Nowości", "content": "Dzień do
         pytest.param("DELETE", "/campaigns/1", None, id="delete"),
         pytest.param("POST", "/campaigns/1/recipients", [1], id="recipients"),
         pytest.param("POST", "/campaigns/1/send", None, id="send"),
+        pytest.param("POST", "/campaigns/1/resend", None, id="resend"),
     ],
 )
 async def test_missing_token_answers_401(
@@ -317,6 +318,7 @@ async def test_changing_or_deleting_a_campaign_being_sent_answers_400(
         pytest.param("DELETE", "", None, id="delete"),
         pytest.param("POST", "/recipients", [], id="recipients"),
         pytest.param("POST", "/send", None, id="send"),
+        pytest.param("POST", "/resend", None, id="resend"),
     ],
 )
 async def test_unknown_campaign_answers_404(
