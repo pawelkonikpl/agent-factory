@@ -54,8 +54,10 @@ It also starts smtp4dev, a dev SMTP server that accepts every message and keeps 
 in an inbox instead of delivering it (no persistent mail): SMTP on 127.0.0.1:2525,
 inbox at http://localhost:5080. Anything else listening on 2525 or 5080 clashes with
 it. To send through it, enter these values in "Ustawienia": server `localhost`, port
-`2525`, TLS off, user `noreply@localhost` (also the `From` address), any password
-(smtp4dev accepts any credentials).
+`2525`, TLS off, user `noreply@localhost` (also the `From` address) and no password.
+With TLS off the API refuses to log in, so it never sends a password in clear text:
+with a saved password, `POST /config/smtp/test` answers 400. A saved password can't be
+cleared, so for smtp4dev sign in as a demo user that has none saved.
 
 The API needs PostgreSQL: start it first (`make docker-up`). At startup the API
 runs `alembic upgrade head` (`api/alembic.ini`, `api/migrations/`) against
