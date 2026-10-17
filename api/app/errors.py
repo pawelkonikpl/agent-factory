@@ -11,3 +11,19 @@ class InvalidTokenError(Exception):
 
 class KeySetUnavailableError(Exception):
     """The issuer's signing keys could not be loaded."""
+
+
+class DomainError(Exception):
+    """Base of the errors a service raises when it rejects a request; raise a subclass."""
+
+
+class NotFoundError(DomainError):
+    """Raise when the requested resource does not exist."""
+
+
+class ConflictError(DomainError):
+    """Raise when the change clashes with existing data, such as a duplicate name."""
+
+
+class BusinessRuleError(DomainError):
+    """Raise when the request breaks a business rule, such as editing a sent campaign."""
