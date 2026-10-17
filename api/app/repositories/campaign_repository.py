@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import ColumnElement, false, func, or_, select
+from sqlalchemy import ColumnElement, false, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.base import utc_now
@@ -45,6 +45,18 @@ class CampaignRepository:
     async def get_by_id(self, campaign_id: int) -> Campaign | None:
         query = select(Campaign).where(Campaign.id == campaign_id, Campaign.is_deleted == false())
         return await self._session.scalar(query)
+
+    async def get_status(self, campaign_id: int) -> CampaignStatus | None:
+        """The stored status, read from the database, of a campaign deleted or not."""
+        return await self._session.scalar(select(Campaign.status).where(Campaign.id == campaign_id))
+
+    async def get_sending(self) -> list[Campaign]:
+        query = (
+            select(Campaign)
+            .where(Campaign.status == CampaignStatus.SENDING, Campaign.is_deleted == false())
+            .order_by(Campaign.id)
+        )
+        return list(await self._session.scalars(query))
 
     async def get_all(self, skip: int, limit: int, search: str | None) -> list[Campaign]:
         query = (
@@ -133,3 +145,30 @@ class CampaignRepository:
             recipient.deleted_at = now
         await self._session.commit()
         return campaign
+
+    async def start_sending(self, campaign: Campaign, reset: list[CampaignRecipient]) -> bool:
+        """Move the campaign to sending and reset the given recipients to pending, in one commit.
+
+        The conditional UPDATE is the guard against a concurrent start: False, with nothing
+        changed, when the campaign is no longer a draft or failed.
+        """
+        query = (
+            update(Campaign)
+            .where(
+                Campaign.id == campaign.id,
+                Campaign.status.in_([CampaignStatus.DRAFT, CampaignStatus.FAILED]),
+                Campaign.is_deleted == false(),
+            )
+            .values(status=CampaignStatus.SENDING)
+            .returning(Campaign.id)
+            # fetch: the campaign object in the session reads sending afterwards.
+            .execution_options(synchronize_session="fetch")
+        )
+        if await self._session.scalar(query) is None:
+            return False
+        for recipient in reset:
+            recipient.status = RecipientStatus.PENDING
+            recipient.error = None
+            recipient.sent_at = None
+        await self._session.commit()
+        return True

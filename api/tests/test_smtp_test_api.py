@@ -1,5 +1,4 @@
 from collections.abc import AsyncIterator
-from dataclasses import dataclass, field
 from typing import Any
 
 import aiosmtplib
@@ -12,13 +11,8 @@ from app.config import Settings
 from app.main import create_app
 from app.services.encryption import EncryptionService
 from app.services.smtp_config_service import SmtpConfig
-from app.services.smtp_sender import (
-    LOGIN_WITHOUT_TLS_ERROR,
-    EmailSender,
-    SendResult,
-    SmtpEmailSender,
-)
-from tests.conftest import AUDIENCE, ISSUER, BearerFactory, FakeIssuer
+from app.services.smtp_sender import LOGIN_WITHOUT_TLS_ERROR, SendResult
+from tests.conftest import AUDIENCE, ISSUER, BearerFactory, FakeIssuer, FakeSenders
 
 SETTINGS = {
     "smtpServer": "localhost",
@@ -27,29 +21,6 @@ SETTINGS = {
     "smtpPassword": "any",
     "smtpUseTls": False,
 }
-
-
-@dataclass
-class FakeSenders:
-    """A fake EmailSenderFactory: records the configs and sends, answers with `result`.
-
-    With `real` set it hands out the real SmtpEmailSender instead.
-    """
-
-    result: SendResult = field(
-        default_factory=lambda: SendResult(success=True, smtp_message_id="<1@test>", error=None)
-    )
-    configs: list[SmtpConfig] = field(default_factory=list)
-    sent: list[tuple[str, str, str]] = field(default_factory=list)
-    real: bool = False
-
-    def __call__(self, config: SmtpConfig) -> EmailSender:
-        self.configs.append(config)
-        return SmtpEmailSender(config) if self.real else self
-
-    async def send(self, to: str, subject: str, html_body: str) -> SendResult:
-        self.sent.append((to, subject, html_body))
-        return self.result
 
 
 @pytest.fixture

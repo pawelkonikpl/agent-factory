@@ -18,7 +18,7 @@ from app.api import campaigns, categories, clients, config, emails, notes
 from app.clock import Clock
 from app.config import Settings
 from app.database import create_engine, create_session_factory, run_migrations
-from app.dependencies import build_container
+from app.dependencies import Container, build_campaign_sender, build_container
 from app.errors import DomainError, InvalidTokenError, KeySetUnavailableError, NotFoundError
 from app.services.smtp_sender import EmailSenderFactory, SmtpEmailSender
 
@@ -44,12 +44,19 @@ def create_app(
         session_factory = create_session_factory(engine)
 
     @asynccontextmanager
-    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # The async env.py calls asyncio.run, which cannot run inside this loop.
         try:
             await asyncio.to_thread(run_migrations, settings.database_url)
         except Exception:
             logger.exception("Database migration failed")
+            raise
+        container: Container = app.state.container
+        try:
+            async with container.sessions() as session:
+                await build_campaign_sender(container, session).recover_interrupted()
+        except Exception:
+            logger.exception("Recovering interrupted campaign sends failed")
             raise
         yield
         if http_client is None:

@@ -19,6 +19,8 @@ from app.config import Settings
 from app.database import run_migrations
 from app.main import create_app
 from app.services.encryption import EncryptionService
+from app.services.smtp_config_service import SmtpConfig
+from app.services.smtp_sender import EmailSender, SendResult, SmtpEmailSender
 
 ISSUER = "https://idp.test/realms/demo"
 AUDIENCE = "demo-api"
@@ -113,6 +115,45 @@ async def session_factory(database_url: str) -> AsyncIterator[async_sessionmaker
         await transaction.rollback()
         await connection.close()
         await engine.dispose()
+
+
+@dataclass
+class FakeSenders:
+    """A fake EmailSenderFactory: records the configs and sends, answers with `result`.
+
+    An address in `failures` gets a failed result with that error, one in `raises` makes send
+    raise. Each send yields once, so concurrent sends overlap; `max_in_flight` is the most at
+    once. With `real` set it hands out the real SmtpEmailSender instead.
+    """
+
+    result: SendResult = field(
+        default_factory=lambda: SendResult(success=True, smtp_message_id="<1@test>", error=None)
+    )
+    failures: dict[str, str] = field(default_factory=dict)
+    raises: set[str] = field(default_factory=set)
+    configs: list[SmtpConfig] = field(default_factory=list)
+    sent: list[tuple[str, str, str]] = field(default_factory=list)
+    in_flight: int = 0
+    max_in_flight: int = 0
+    real: bool = False
+
+    def __call__(self, config: SmtpConfig) -> EmailSender:
+        self.configs.append(config)
+        return SmtpEmailSender(config) if self.real else self
+
+    async def send(self, to: str, subject: str, html_body: str) -> SendResult:
+        self.sent.append((to, subject, html_body))
+        self.in_flight += 1
+        self.max_in_flight = max(self.max_in_flight, self.in_flight)
+        try:
+            await asyncio.sleep(0)
+        finally:
+            self.in_flight -= 1
+        if to in self.raises:
+            raise RuntimeError(f"boom for {to}")
+        if to in self.failures:
+            return SendResult(success=False, smtp_message_id=None, error=self.failures[to])
+        return self.result
 
 
 @dataclass
