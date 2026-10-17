@@ -1,7 +1,7 @@
 """Resource server configuration, read from environment variables with the API_ prefix."""
 
 from cryptography.fernet import Fernet
-from pydantic import SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://emailsender:emailsender@localhost:5432/emailsender"
     # Tests only: the database tests/conftest.py uses (its name must contain "test").
     test_database_url: str | None = None
+    # Sends at once per campaign when POST /campaigns/{id}/send gives no max_concurrent (D10).
+    email_max_concurrent: int = Field(10, ge=1, le=50)
     # Encrypts the stored SMTP passwords. Required: the API does not start without it.
     encryption_key: SecretStr
 
