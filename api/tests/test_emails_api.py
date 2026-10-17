@@ -349,3 +349,85 @@ async def test_invalid_list_query_answers_422(
     response = await client.get(f"/emails/?{query}", headers=bearer())
 
     assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        pytest.param("/emails/2147483648", id="email-id-above-int32"),
+        pytest.param("/emails/-2147483649", id="email-id-below-int32"),
+        pytest.param("/emails/campaign/2147483648", id="by-campaign-id"),
+        pytest.param("/emails/client/2147483648", id="by-client-id"),
+        pytest.param("/emails/?campaign_id=2147483648", id="list-campaign-id"),
+        pytest.param("/emails/?client_id=2147483648", id="list-client-id"),
+        pytest.param("/emails/stats/?campaign_id=2147483648", id="stats-campaign-id"),
+        pytest.param("/emails/failed/?campaign_id=2147483648", id="failed-campaign-id"),
+        pytest.param("/emails/?skip=9223372036854775808", id="skip-above-int64"),
+        pytest.param("/emails/?search=a%00b", id="search-nul"),
+        pytest.param("/emails/?from_date=0001-01-01T00:00:00%2B05:00", id="from-date-before-utc"),
+        pytest.param("/emails/?to_date=9999-12-31T23:59:59-05:00", id="to-date-after-utc"),
+    ],
+)
+async def test_input_past_the_database_limits_answers_422(
+    client: httpx.AsyncClient, bearer: BearerFactory, path: str
+) -> None:
+    response = await client.get(path, headers=bearer())
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        pytest.param("PUT", "/emails/2147483648", id="update"),
+        pytest.param("POST", "/emails/2147483648/mark-opened", id="mark-opened"),
+        pytest.param("POST", "/emails/2147483648/mark-clicked", id="mark-clicked"),
+        pytest.param("DELETE", "/emails/2147483648", id="delete"),
+    ],
+)
+async def test_email_id_above_int32_answers_422_on_writes(
+    client: httpx.AsyncClient, bearer: BearerFactory, method: str, path: str
+) -> None:
+    response = await client.request(method, path, json={}, headers=bearer())
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        pytest.param({"errorMessage": "a\u0000b"}, id="error-message-nul"),
+        pytest.param({"errorCode": "a\u0000b"}, id="error-code-nul"),
+        pytest.param({"smtpMessageId": "a\u0000b"}, id="smtp-message-id-nul"),
+        pytest.param({"smtpResponse": "a\u0000b"}, id="smtp-response-nul"),
+        pytest.param({"sentAt": "0001-01-01T00:00:00+05:00"}, id="sent-at-before-utc"),
+        pytest.param({"bouncedAt": "9999-12-31T23:59:59-05:00"}, id="bounced-at-after-utc"),
+    ],
+)
+async def test_update_past_the_database_limits_answers_422_and_writes_nothing(
+    client: httpx.AsyncClient,
+    bearer: BearerFactory,
+    session_factory: async_sessionmaker[AsyncSession],
+    body: dict[str, str],
+) -> None:
+    acme = await add_client(client, bearer, "Acme")
+    autumn = await add_campaign(client, bearer, "Jesień")
+    email_id = await add_email(session_factory, autumn, acme)
+    before = await get(client, bearer, f"/emails/{email_id}")
+
+    response = await client.put(f"/emails/{email_id}", json=body, headers=bearer())
+
+    assert response.status_code == 422
+    assert await get(client, bearer, f"/emails/{email_id}") == before
+
+
+async def test_ids_at_the_int32_limits_answer_404(
+    client: httpx.AsyncClient, bearer: BearerFactory
+) -> None:
+    for email_id in (2147483647, -2147483648):
+        response = await client.get(f"/emails/{email_id}", headers=bearer())
+
+        assert (response.status_code, response.json()) == (
+            404,
+            {"detail": f"Email {email_id} not found"},
+        )
