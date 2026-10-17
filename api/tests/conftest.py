@@ -9,6 +9,7 @@ import httpx
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
+from fastapi import FastAPI
 from sqlalchemy import text
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -157,18 +158,23 @@ def issuer() -> FakeIssuer:
 
 
 @pytest.fixture
-async def client(
+async def app(
     issuer: FakeIssuer,
     database_url: str,
     session_factory: async_sessionmaker[AsyncSession],
-) -> AsyncIterator[httpx.AsyncClient]:
+) -> AsyncIterator[FastAPI]:
+    """The app the client talks to; a test module may override it to add test-only routes."""
     settings = Settings(issuer=ISSUER, audience=AUDIENCE, database_url=database_url)
     async with httpx.AsyncClient(transport=issuer.transport()) as outbound:
-        app = create_app(settings, http_client=outbound, session_factory=session_factory)
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app), base_url="http://api.test"
-        ) as api:
-            yield api
+        yield create_app(settings, http_client=outbound, session_factory=session_factory)
+
+
+@pytest.fixture
+async def client(app: FastAPI) -> AsyncIterator[httpx.AsyncClient]:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://api.test"
+    ) as api:
+        yield api
 
 
 BearerFactory = Callable[..., dict[str, str]]
