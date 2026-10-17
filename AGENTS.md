@@ -32,6 +32,12 @@ your own key into `api/.env` with
 `cd api && uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`,
 or use the dev SMTP server smtp4dev (values under "Run locally").
 
+`api/.env.example` sets `API_SEED_DEMO_DATA=true`: at startup the API seeds five demo
+clients on reserved `.example` addresses and three draft campaigns, idempotently (a
+second start creates nothing). An existing `api/.env` lacks the line and gets no demo
+data until it is copied from `api/.env.example`. `cd api && uv run python -m app.services.seed`
+seeds by hand, whatever the setting says.
+
 ## Run locally
 
 Each command in its own terminal, from the repo root:
