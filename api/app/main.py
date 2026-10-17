@@ -14,7 +14,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from app.api import categories, clients, notes
+from app.api import categories, clients, config, notes
 from app.clock import Clock
 from app.config import Settings
 from app.database import create_engine, create_session_factory, run_migrations
@@ -60,6 +60,7 @@ def create_app(
     app.include_router(notes.router)
     app.include_router(categories.router)
     app.include_router(clients.router)
+    app.include_router(config.router)
 
     @app.get("/health", include_in_schema=False)
     async def health() -> dict[str, str]:

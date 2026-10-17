@@ -36,3 +36,7 @@ class PageParams:
 
 
 PageParamsDep = Annotated[PageParams, Depends()]
+
+
+class MessageSchema(BaseSchema):
+    message: str
