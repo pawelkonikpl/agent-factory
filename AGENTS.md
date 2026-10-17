@@ -25,6 +25,13 @@ cd web && npm install
 
 `.env` files are git-ignored. The BFF does not start without `bff/.env`.
 
+An existing `api/.env` lacks `API_ENCRYPTION_KEY`, which is required: without it the
+API, its tests and `alembic` don't start. Copy that line from `api/.env.example`. The
+demo key there is public (it is in git): before saving a real SMTP password, generate
+your own key into `api/.env` with
+`cd api && uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`,
+or use a dev SMTP server (smtp4dev, coming with API-8).
+
 ## Run locally
 
 Each command in its own terminal, from the repo root:
