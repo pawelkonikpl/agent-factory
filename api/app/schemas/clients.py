@@ -1,7 +1,7 @@
 """Client schemas (api-contract.md §2)."""
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import AfterValidator, EmailStr, Field
 
@@ -9,6 +9,7 @@ from app.schemas.base import BaseSchema
 from app.schemas.categories import CategorySchema
 
 COMPANY_NAME_MAX_LENGTH = 128
+BULK_MAX_ROWS = 1000
 
 
 def validate_company_name(value: str) -> str:
@@ -57,3 +58,20 @@ class ClientSchema(BaseSchema):
     created_at: datetime
     updated_at: datetime
     categories: list[CategorySchema]
+
+
+class ClientBulkCreateSchema(BaseSchema):
+    """Rows stay raw objects: each is validated on its own, so one bad row fails only itself."""
+
+    clients: list[dict[str, Any]] = Field(min_length=1, max_length=BULK_MAX_ROWS)
+
+
+class ClientBulkErrorSchema(BaseSchema):
+    row: int
+    message: str
+
+
+class ClientBulkResultSchema(BaseSchema):
+    success: int
+    failed: int
+    errors: list[ClientBulkErrorSchema]
