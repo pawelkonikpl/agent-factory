@@ -13,6 +13,7 @@ dependencies = [
     "asyncpg>=0.32.0",
     "alembic>=1.20.0",
     "pydantic[email]>=2.11",
+    "cryptography>=50.0.2",
 ]
 
 [dependency-groups]
