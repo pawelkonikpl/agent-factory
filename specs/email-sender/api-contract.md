@@ -103,7 +103,10 @@ sends every field.
 
 Request `{ clients: object[] }`, 1 to 1000 rows; each row is validated on its own as a
 `ClientCreateSchema`. Response `{ success: number, failed: number, errors: [ { row: number,
-message: string } ] }`, `row` counted from 1.
+message: string } ] }`, `row` counted from 1. `message` is the service's message for a business
+error ("Client with email '{email}' already exists", also for a duplicate of an earlier row of
+the batch, or "Categories not found: …"), or the row's validation errors joined with `; `, each
+as `<camelCase field>: <msg>` (a nested field's path joined with `.`, as in `categoryIds.0`).
 
 ### CampaignRecipientSchema
 
@@ -239,7 +242,7 @@ Every endpoint requires the access token (§0). Paths are the API's; the SPA pre
 | `GET /clients/{id}` | | `200 ClientSchema`; `404` "Client {id} not found" |
 | `PUT /clients/{id}` | full replacement of the fields and categories; uniqueness excluding itself | `200 ClientSchema`; `404`; `400` |
 | `DELETE /clients/{id}` | soft delete and drop its category links | `204`; `404` |
-| **[NEW]** `POST /clients/bulk` | body `ClientBulkCreateSchema`; row by row, a failing row doesn't stop the others; a row's email must be unique against the database and the earlier rows of the batch | `200 ClientBulkResultSchema`; `422` for more than 1000 rows |
+| **[NEW]** `POST /clients/bulk` | body `ClientBulkCreateSchema`; row by row, a failing row doesn't stop the others; a row's email must be unique against the database and the earlier rows of the batch | `200 ClientBulkResultSchema`; `422` for an empty list or more than 1000 rows |
 
 [FIX W-26] `categoryIds` must exist and not be deleted, else `400` "Categories not found: 3, 7".
 Duplicate IDs are ignored.

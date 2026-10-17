@@ -74,10 +74,16 @@ def names(page: dict[str, Any]) -> list[str]:
             id="update",
         ),
         pytest.param("DELETE", "/clients/1", None, id="delete"),
+        pytest.param(
+            "POST",
+            "/clients/bulk",
+            {"clients": [{"companyName": "Acme", "primaryEmail": "biuro@acme.example"}]},
+            id="bulk",
+        ),
     ],
 )
 async def test_missing_token_answers_401(
-    client: httpx.AsyncClient, method: str, path: str, body: dict[str, str] | None
+    client: httpx.AsyncClient, method: str, path: str, body: dict[str, Any] | None
 ) -> None:
     response = await client.request(method, path, json=body)
 
@@ -311,3 +317,56 @@ async def test_deleting_a_category_removes_it_from_its_clients(
     fetched = await client.get(f"/clients/{created['id']}", headers=bearer())
     assert fetched.status_code == 200
     assert fetched.json()["categories"] == [kept]
+
+
+async def test_bulk_answers_200_with_each_failing_row_and_creates_the_others(
+    client: httpx.AsyncClient, bearer: BearerFactory
+) -> None:
+    category = await create_category(client, bearer, "Hurtownie")
+    await create(client, bearer, "Istniejący", "biuro@istniejacy.example")
+    rows = [
+        {
+            "companyName": "Alfa",
+            "primaryEmail": "biuro@alfa.example",
+            "categoryIds": [category["id"]],
+        },
+        {"companyName": "Istniejący Bis", "primaryEmail": "biuro@istniejacy.example"},
+        {"companyName": "Alfa Bis", "primaryEmail": "biuro@alfa.example"},
+        {"companyName": "Beta", "primaryEmail": "not-an-email"},
+        {"companyName": "", "primaryEmail": "biuro@pusty.example"},
+        {"companyName": "Gamma", "primaryEmail": "biuro@gamma.example", "categoryIds": [999999]},
+        {"companyName": "Delta", "primaryEmail": "biuro@delta.example"},
+    ]
+
+    response = await client.post("/clients/bulk", json={"clients": rows}, headers=bearer())
+
+    assert response.status_code == 200
+    result = response.json()
+    assert (result["success"], result["failed"]) == (2, 5)
+    assert [error["row"] for error in result["errors"]] == [2, 3, 4, 5, 6]
+    messages = [error["message"] for error in result["errors"]]
+    assert messages[:2] == [
+        "Client with email 'biuro@istniejacy.example' already exists",
+        "Client with email 'biuro@alfa.example' already exists",
+    ]
+    assert messages[2].startswith("primaryEmail: value is not a valid email address: ")
+    assert messages[3:] == [
+        "companyName: Value error, Company name cannot be empty",
+        "Categories not found: 999999",
+    ]
+    page = await listed(client, bearer)
+    assert names(page) == ["Alfa", "Delta", "Istniejący"]
+    assert page["items"][0]["categories"] == [category]
+
+
+@pytest.mark.parametrize("rows", [0, 1001], ids=["empty", "1001"])
+async def test_bulk_with_no_rows_or_more_than_1000_answers_422(
+    client: httpx.AsyncClient, bearer: BearerFactory, rows: int
+) -> None:
+    body = {"clients": [{"companyName": "Acme", "primaryEmail": "biuro@acme.example"}] * rows}
+
+    response = await client.post("/clients/bulk", json=body, headers=bearer())
+
+    assert response.status_code == 422
+    assert [problem["loc"] for problem in response.json()["detail"]] == [["body", "clients"]]
+    assert await listed(client, bearer) == {"items": [], "total": 0}

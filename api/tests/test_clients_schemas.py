@@ -6,7 +6,14 @@ from pydantic import ValidationError
 
 from app.models.category import Category
 from app.models.client import Client
-from app.schemas.clients import ClientCreateSchema, ClientSchema, ClientUpdateSchema
+from app.schemas.clients import (
+    ClientBulkCreateSchema,
+    ClientBulkErrorSchema,
+    ClientBulkResultSchema,
+    ClientCreateSchema,
+    ClientSchema,
+    ClientUpdateSchema,
+)
 
 InputSchema = type[ClientCreateSchema] | type[ClientUpdateSchema]
 
@@ -133,4 +140,40 @@ def test_client_schema_dumps_the_contract_keys_with_its_categories() -> None:
                 "updatedAt": "2026-10-10T13:03:00Z",
             }
         ],
+    }
+
+
+@pytest.mark.parametrize("rows", [0, 1001], ids=["empty", "1001"])
+def test_bulk_with_no_rows_or_more_than_1000_is_rejected(rows: int) -> None:
+    with pytest.raises(ValidationError) as error:
+        ClientBulkCreateSchema.model_validate({"clients": [payload()] * rows})
+
+    assert [problem["loc"] for problem in error.value.errors()] == [("clients",)]
+
+
+@pytest.mark.parametrize("rows", [1, 1000])
+def test_bulk_with_1_to_1000_rows_is_accepted(rows: int) -> None:
+    bulk = ClientBulkCreateSchema.model_validate({"clients": [payload()] * rows})
+
+    assert len(bulk.clients) == rows
+
+
+def test_bulk_rows_stay_raw_objects() -> None:
+    # An invalid row must not fail the whole request: the service validates each one.
+    bulk = ClientBulkCreateSchema.model_validate({"clients": [{"primaryEmail": "not-an-email"}]})
+
+    assert bulk.clients == [{"primaryEmail": "not-an-email"}]
+
+
+def test_bulk_result_schema_dumps_the_contract_keys() -> None:
+    result = ClientBulkResultSchema(
+        success=1,
+        failed=1,
+        errors=[ClientBulkErrorSchema(row=2, message="Categories not found: 9")],
+    )
+
+    assert result.model_dump(mode="json") == {
+        "success": 1,
+        "failed": 1,
+        "errors": [{"row": 2, "message": "Categories not found: 9"}],
     }

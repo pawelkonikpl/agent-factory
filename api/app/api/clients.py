@@ -3,7 +3,13 @@ from fastapi import APIRouter, status
 from app.dependencies import ClientServiceDep, PrincipalDep
 from app.models.client import Client
 from app.schemas.base import Page, PageParamsDep
-from app.schemas.clients import ClientCreateSchema, ClientSchema, ClientUpdateSchema
+from app.schemas.clients import (
+    ClientBulkCreateSchema,
+    ClientBulkResultSchema,
+    ClientCreateSchema,
+    ClientSchema,
+    ClientUpdateSchema,
+)
 
 router = APIRouter(prefix="/clients", tags=["Clients"])
 
@@ -23,6 +29,13 @@ async def create_client(
     payload: ClientCreateSchema, principal: PrincipalDep, service: ClientServiceDep
 ) -> Client:
     return await service.create(payload)
+
+
+@router.post("/bulk", response_model=ClientBulkResultSchema)
+async def bulk_create_clients(
+    payload: ClientBulkCreateSchema, principal: PrincipalDep, service: ClientServiceDep
+) -> ClientBulkResultSchema:
+    return await service.bulk_create(payload)
 
 
 @router.get("/{client_id}", response_model=ClientSchema)

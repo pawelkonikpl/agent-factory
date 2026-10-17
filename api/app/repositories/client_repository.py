@@ -60,6 +60,10 @@ def _write(client: Client, data: ClientFieldsSchema, categories: list[Category])
     client.categories = categories
 
 
+def _email_taken(email: str) -> ConflictError:
+    return ConflictError(f"Client with email '{email}' already exists")
+
+
 class ClientRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -105,6 +109,20 @@ class ClientRepository:
         await self._commit_email(data.primary_email)
         return client
 
+    async def add_in_savepoint(
+        self, data: ClientCreateSchema, categories: list[Category]
+    ) -> Client:
+        """Add and flush in a savepoint, without committing: a failure undoes this client only."""
+        client = Client()
+        _write(client, data, categories)
+        try:
+            async with self._session.begin_nested():
+                self._session.add(client)
+                await self._session.flush()
+        except IntegrityError as exc:
+            raise _email_taken(data.primary_email) from exc
+        return client
+
     async def update(
         self, client: Client, data: ClientUpdateSchema, categories: list[Category]
     ) -> Client:
@@ -120,10 +138,13 @@ class ClientRepository:
         await self._session.commit()
         return client
 
+    async def commit(self) -> None:
+        await self._session.commit()
+
     async def _commit_email(self, email: str) -> None:
         # Two concurrent requests can both pass the service check; the index then rejects one.
         try:
             await self._session.commit()
         except IntegrityError as exc:
             await self._session.rollback()
-            raise ConflictError(f"Client with email '{email}' already exists") from exc
+            raise _email_taken(email) from exc
