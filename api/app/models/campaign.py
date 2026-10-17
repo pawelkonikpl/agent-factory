@@ -6,7 +6,7 @@ from datetime import datetime
 from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, IdMixin, SoftDeleteMixin, TimestampMixin
+from app.models.base import Base, IdMixin, SoftDeleteMixin, TimestampMixin, enum_values
 from app.models.client import Client
 
 
@@ -25,11 +25,6 @@ class RecipientStatus(enum.StrEnum):
     BOUNCED = "bounced"
 
 
-def _values(enum_class: type[enum.Enum]) -> list[str]:
-    # Store the lowercase values, not the member names SQLAlchemy stores by default.
-    return [member.value for member in enum_class]
-
-
 class Campaign(IdMixin, TimestampMixin, SoftDeleteMixin, Base):
     __tablename__ = "campaigns"
 
@@ -41,7 +36,7 @@ class Campaign(IdMixin, TimestampMixin, SoftDeleteMixin, Base):
         Enum(
             CampaignStatus,
             native_enum=False,
-            values_callable=_values,
+            values_callable=enum_values,
             create_constraint=True,
             name="campaign_status",
         ),
@@ -84,7 +79,7 @@ class CampaignRecipient(IdMixin, TimestampMixin, SoftDeleteMixin, Base):
         Enum(
             RecipientStatus,
             native_enum=False,
-            values_callable=_values,
+            values_callable=enum_values,
             create_constraint=True,
             name="recipient_status",
         ),

@@ -5,6 +5,7 @@ from app.models.campaign import Campaign, CampaignRecipient, CampaignStatus, Rec
 from app.models.category import Category
 from app.models.client import Client, client_category
 from app.models.config import Config
+from app.models.email import Email, EmailStatus
 
 __all__ = [
     "Base",
@@ -14,6 +15,8 @@ __all__ = [
     "Category",
     "Client",
     "Config",
+    "Email",
+    "EmailStatus",
     "RecipientStatus",
     "client_category",
 ]

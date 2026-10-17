@@ -1,5 +1,6 @@
 """Declarative base with the constraint naming convention, and the shared column mixins."""
 
+import enum
 from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, MetaData
@@ -17,6 +18,11 @@ NAMING_CONVENTION = {
 
 def utc_now() -> datetime:
     return datetime.now(UTC)
+
+
+def enum_values(enum_class: type[enum.Enum]) -> list[str]:
+    # Store the lowercase values, not the member names SQLAlchemy stores by default.
+    return [member.value for member in enum_class]
 
 
 class Base(DeclarativeBase):
