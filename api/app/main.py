@@ -19,7 +19,7 @@ from app.clock import Clock
 from app.config import Settings
 from app.database import create_engine, create_session_factory, run_migrations
 from app.dependencies import build_container
-from app.errors import InvalidTokenError, KeySetUnavailableError
+from app.errors import DomainError, InvalidTokenError, KeySetUnavailableError, NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -84,5 +84,14 @@ def create_app(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={"detail": "Cannot verify tokens right now"},
         )
+
+    @app.exception_handler(DomainError)
+    async def handle_domain_error(request: Request, exc: DomainError) -> JSONResponse:
+        # The only place that maps domain errors to statuses: by type, never by message.
+        if isinstance(exc, NotFoundError):
+            status_code = status.HTTP_404_NOT_FOUND
+        else:
+            status_code = status.HTTP_400_BAD_REQUEST
+        return JSONResponse(status_code=status_code, content={"detail": str(exc)})
 
     return app
