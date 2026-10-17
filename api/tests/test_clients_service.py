@@ -10,7 +10,11 @@ from app.models.category import Category
 from app.models.client import Client, client_category
 from app.repositories.category_repository import CategoryRepository
 from app.repositories.client_repository import ClientRepository
-from app.schemas.clients import ClientCreateSchema, ClientUpdateSchema
+from app.schemas.clients import (
+    ClientBulkCreateSchema,
+    ClientCreateSchema,
+    ClientUpdateSchema,
+)
 from app.services.client_service import ClientService
 
 
@@ -304,3 +308,112 @@ async def test_repository_create_with_a_taken_email_raises_conflict_error(
     assert str(error.value) == "Client with email 'biuro@acme.example' already exists"
     listed = await repository.get_all(0, 100, None)
     assert [client.primary_email for client in listed] == ["biuro@acme.example"]
+
+
+async def bulk(
+    service: ClientService, *rows: dict[str, Any]
+) -> tuple[int, int, list[tuple[int, str]]]:
+    result = await service.bulk_create(ClientBulkCreateSchema(clients=list(rows)))
+    return result.success, result.failed, [(error.row, error.message) for error in result.errors]
+
+
+def row(company_name: str, primary_email: str, **fields: Any) -> dict[str, Any]:
+    return {"companyName": company_name, "primaryEmail": primary_email} | fields
+
+
+async def test_bulk_create_reports_each_failing_row_and_creates_the_others(
+    service: ClientService, session: AsyncSession, categories: CategoryRepository
+) -> None:
+    category = await categories.create("Hurtownie")
+    await create(service, "Istniejący", "biuro@istniejacy.example")
+
+    result = await bulk(
+        service,
+        row("Alfa", "biuro@alfa.example", categoryIds=[category.id]),
+        row("Istniejący Bis", "biuro@istniejacy.example"),
+        row("Alfa Bis", "biuro@alfa.example"),
+        row("Beta", "not-an-email"),
+        row("", "biuro@pusty.example"),
+        row("Gamma", "biuro@gamma.example", categoryIds=[999999]),
+        row("Delta", "biuro@delta.example"),
+    )
+
+    success, failed, errors = result
+    assert (success, failed) == (2, 5)
+    assert errors[:2] == [
+        (2, "Client with email 'biuro@istniejacy.example' already exists"),
+        (3, "Client with email 'biuro@alfa.example' already exists"),
+    ]
+    assert errors[2][0] == 4
+    assert errors[2][1].startswith("primaryEmail: value is not a valid email address: ")
+    assert errors[3:] == [
+        (5, "companyName: Value error, Company name cannot be empty"),
+        (6, "Categories not found: 999999"),
+    ]
+    session.expunge_all()
+    assert await listed_names(service) == ["Alfa", "Delta", "Istniejący"]
+    alfa = (await service.get_all(0, 100, "Alfa")).items[0]
+    assert [linked.id for linked in alfa.categories] == [category.id]
+
+
+async def test_bulk_create_joins_every_validation_error_of_a_row(service: ClientService) -> None:
+    _, _, errors = await bulk(service, {"companyName": " ", "categoryIds": ["a"]})
+
+    assert errors == [
+        (
+            1,
+            "companyName: Value error, Company name cannot be empty; "
+            "primaryEmail: Field required; "
+            "categoryIds.0: Input should be a valid integer, unable to parse string as an integer",
+        )
+    ]
+
+
+async def test_bulk_create_accepts_the_email_of_a_soft_deleted_client(
+    service: ClientService,
+) -> None:
+    deleted = await create(service, "Acme", "biuro@acme.example")
+    await service.delete(deleted.id)
+
+    assert await bulk(service, row("Acme", "biuro@acme.example")) == (1, 0, [])
+    assert await listed_names(service) == ["Acme"]
+
+
+async def test_bulk_create_row_hitting_the_unique_index_fails_only_that_row(
+    service: ClientService,
+    repository: ClientRepository,
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    await create(service, "Istniejący", "biuro@istniejacy.example")
+
+    # As if a concurrent request took the email after the service check passed.
+    async def never_taken(email: str, exclude_id: int | None = None) -> bool:
+        return False
+
+    monkeypatch.setattr(repository, "exists_by_email", never_taken)
+
+    result = await bulk(
+        service,
+        row("Alfa", "biuro@alfa.example"),
+        row("Istniejący Bis", "biuro@istniejacy.example"),
+        row("Beta", "biuro@beta.example"),
+    )
+
+    assert result == (
+        2,
+        1,
+        [(2, "Client with email 'biuro@istniejacy.example' already exists")],
+    )
+    session.expunge_all()
+    assert await listed_names(service) == ["Alfa", "Beta", "Istniejący"]
+
+
+async def test_bulk_create_commits_the_created_rows(
+    service: ClientService, session: AsyncSession
+) -> None:
+    await bulk(service, row("Alfa", "biuro@alfa.example"), row("", "biuro@pusty.example"))
+
+    # A rollback now undoes only what was not committed.
+    await session.rollback()
+    assert await listed_names(service) == ["Alfa"]
