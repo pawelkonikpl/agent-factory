@@ -4,6 +4,12 @@
 # write the bind-mounted checkout: keep-id maps the host user to vscode (UID 1000)
 # instead. label=disable lets both containers read their bind mounts on SELinux
 # hosts, as the devcontainer CLI does for Podman.
+#
+# dev joins keycloak's network namespace, which its own keep-id user namespace
+# doesn't own, so it can't mount a new sysfs: the container fails to start with
+# "crun: mount `sysfs` to `sys`: Operation not permitted". Podman falls back to
+# bind-mounting /sys for other new user namespaces but not for keep-id (still so in
+# 5.8.1), so do it here. The mount is read-only.
 
 # podman-compose puts the services in a pod by default, and a pod can't take keep-id.
 x-podman:
@@ -16,3 +22,5 @@ services:
   dev:
     userns_mode: "keep-id:uid=1000,gid=1000"
     security_opt: ["label=disable"]
+    volumes:
+      - /sys:/sys:ro

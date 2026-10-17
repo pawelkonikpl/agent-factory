@@ -14,7 +14,6 @@ adapted to the existing `api/`, `web/` and BFF. The notes themselves are not in 
 | `api-contract.md` | the HTTP contract: enums, schemas, endpoints, the send rules, errors |
 | `backend.md` | one section per API roadmap item, `API-1` to `API-14` |
 | `frontend.md` | one section per UI roadmap item, `UI-1` to `UI-13` |
-| `roadmap.md` | Phase 4 and Phase 5, to paste into `factory/backlog.md` after Phase 3 |
 
 Tags in the item sections and the contract:
 
@@ -27,7 +26,7 @@ The source's optional **[OPT]** work is listed in §12, Deferred.
 
 ## 1. How to work on an item
 
-Each line of `roadmap.md` is one factory job. `/factory next` takes the next line; the
+Each line of Phase 4 and Phase 5 in `factory/backlog.md` is one factory job. `/factory next` takes the next line; the
 spec-writer reads the line, this README, `api-contract.md` and the item's section in
 `backend.md` or `frontend.md`. An item's requirements are the minimum, its acceptance
 criteria are its test plan, and it ends with every validation command in `AGENTS.md` green.

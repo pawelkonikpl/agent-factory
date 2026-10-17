@@ -1,7 +1,7 @@
 # Email Sender UI items (UI-1 to UI-13)
 
 Context, tags, the defects (W-xx) and the decisions (D-x) are in `README.md`; the HTTP contract
-in `api-contract.md`. Each section is one roadmap item in `roadmap.md`, Phase 5, with Goal,
+in `api-contract.md`. Each section is one roadmap item in `factory/backlog.md`, Phase 5, with Goal,
 Requirements, Pitfalls, Depends on and Acceptance criteria.
 
 **UI copy is Polish** (D1). The quoted strings below are the old app's exact copy; keep them

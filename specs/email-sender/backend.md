@@ -1,7 +1,7 @@
 # Email Sender API items (API-1 to API-14)
 
 Context, tags, the defects (W-xx) and the decisions (D-x) are in `README.md`; request and
-response shapes in `api-contract.md`. Each section is one roadmap item in `roadmap.md`, Phase 4,
+response shapes in `api-contract.md`. Each section is one roadmap item in `factory/backlog.md`, Phase 4,
 with Goal, Requirements, Pitfalls, Depends on and Acceptance criteria.
 
 Rules for every item:

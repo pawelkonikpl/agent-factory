@@ -1,6 +1,6 @@
 # Dev shortcuts. Run from the repo root. Works with GNU Make 3.81 (macOS).
 
-DASHBOARD_PORT ?= 8000
+DASHBOARD_PORT ?= 8005
 CONTAINER_ENGINE ?= podman
 COMPOSE = $(CONTAINER_ENGINE) compose -f keycloak/docker-compose.yml
 SANDBOX = $(CONTAINER_ENGINE) compose -f compose.yaml
