@@ -217,3 +217,9 @@ Run modes today (API-1, `specs/features/009-postgresql-run-modes.md`):
 - The `docker.io/rnwood/smtp4dev:3.15.0` tag is taken from backend.md as given; if it does not
   exist the builder uses the newest pinned 3.x release tag and notes it, since D19 only requires
   a pinned, non-`prerelease` tag.
+
+## Changes
+
+wlacz tls
+
+Clarified by the user: block login without TLS. When TLS is off and an SMTP password is saved, the API must refuse to log in and send the password in clear text, and answer with a mapped error (a 400 from `POST /config/smtp/test`) instead. Sending without a login (no password saved) still works over a connection without TLS, so smtp4dev keeps working in all three run modes.
