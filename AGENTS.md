@@ -6,7 +6,7 @@ OAuth/OIDC Backend-for-Frontend demo plus the software factory that builds on it
 
 - `bff/`: FastAPI Backend-for-Frontend, the OAuth confidential client (login, logout, CSRF, sessions, `/api` proxy). Python, uv.
 - `api/`: FastAPI resource server (notes per user), verifies JWTs from Keycloak. Python, uv.
-- `web/`: Vite + React + TypeScript SPA. UI copy is Polish. The Vite dev server serves it in development, and `npm run build` writes a static bundle to `web/dist/` for a separate static host that shares its origin with the BFF (proxying `/bff` and `/api`), since `bff/` and `api/` serve no frontend files. The SPA talks to the backend only through `/bff/*` (session) and `/api/*` (the BFF proxy).
+- `web/`: Vite + React + TypeScript SPA. UI copy is Polish. The Vite dev server serves it in development, and `bun run build` writes a static bundle to `web/dist/` for a separate static host that shares its origin with the BFF (proxying `/bff` and `/api`), since `bff/` and `api/` serve no frontend files. The SPA talks to the backend only through `/bff/*` (session) and `/api/*` (the BFF proxy).
 - `keycloak/`: dev-only Keycloak, PostgreSQL and smtp4dev (`docker-compose.yml`) and the `demo` realm (`realm-demo.json`).
 - `compose.yaml` (root): the dev-only sandbox that runs the whole stack in containers, built from the `Containerfile` in each of `api/`, `bff/` and `web/`.
 - `.devcontainer/`: dev-only coding environment (dev container plus Keycloak, PostgreSQL and smtp4dev), see "Dev container".
@@ -20,8 +20,10 @@ Each line from the repo root:
 ```bash
 cd bff && cp .env.example .env && uv sync
 cd api && cp .env.example .env && uv sync
-cd web && npm install
+cd web && bun install
 ```
+
+The `web/` commands need bun 1.4.3 on the host.
 
 `.env` files are git-ignored. The BFF does not start without `bff/.env`.
 
@@ -46,7 +48,7 @@ Each command in its own terminal, from the repo root:
 podman compose -f keycloak/docker-compose.yml up -d                  # Keycloak, port 8080 (admin/admin), PostgreSQL, port 5432, and smtp4dev, ports 2525 and 5080
 cd api && uv run uvicorn app.main:create_app --factory --port 8001    # API, port 8001
 cd bff && uv run uvicorn app.main:create_app --factory --port 8000    # BFF, port 8000
-cd web && npm run dev                                                 # web, port 5173
+cd web && bun run dev                                                 # web, port 5173
 ```
 
 Docker works too: `docker compose -f keycloak/docker-compose.yml up -d` or
@@ -74,14 +76,14 @@ Open http://localhost:5173. Demo users `alice`/`alice` and `bob`/`bob` (dev only
 The root `Makefile` wraps these: `make docker-up` (also `docker-down`,
 `docker-logs`; Keycloak and PostgreSQL only), `make backend` (API and BFF in one terminal,
 Ctrl-C stops both), `make web` (web dev server, port 5173), `make web-build`
-(runs `npm run build` in `web/`) and `make dashboard`. `make sandbox-up` (also
+(runs `bun run build` in `web/`) and `make dashboard`. `make sandbox-up` (also
 `sandbox-down`, `sandbox-logs`) runs the whole stack in containers, see
 "Sandbox". The `docker-*` and `sandbox-*` targets run through
 `CONTAINER_ENGINE` (default `podman`; `CONTAINER_ENGINE=docker` for Docker).
 `make help` lists every target.
 
 - To look at pages, the web dev server can run on another port:
-  `cd web && npm run dev -- --port <port>`. Signing in only works on 5173, the
+  `cd web && bun run dev --port <port>`. Signing in only works on 5173, the
   redirect URI registered in `keycloak/realm-demo.json`. The page needs the BFF on
   8000 (the Vite proxy target) to get past "checking session".
 - To look at signed-in pages without Keycloak, the BFF or a sign-in, stub the
@@ -125,12 +127,12 @@ make sandbox-down    # stop and remove the containers
 - Keycloak takes a while to start, so the first login may fail until it is up.
   Watch `make sandbox-logs`.
 - It cannot run at the same time as the host-run Keycloak and PostgreSQL
-  (`make docker-up`) or `npm run dev` (`make web`) on 5173: they use the same ports.
+  (`make docker-up`) or `bun run dev` (`make web`) on 5173: they use the same ports.
 
 ## Dev container
 
-`.devcontainer/` is a coding environment with Python 3.12, uv, Node 22, git and
-make. Keycloak runs as a second container that shares its network, so
+`.devcontainer/` is a coding environment with Python 3.12, uv, bun 1.4.3, Node 22, git
+and make. Keycloak runs as a second container that shares its network, so
 `localhost:8080` inside it is Keycloak. PostgreSQL runs as a third container on the
 same network, so `localhost:5432` inside it is PostgreSQL (database, user and
 password `emailsender`, no persistent data, not forwarded to the host). smtp4dev runs
@@ -151,17 +153,18 @@ make backend    # API and BFF
 make web        # web dev server, port 5173
 ```
 
-- A dev container created before PostgreSQL or smtp4dev was added doesn't have
+- A dev container created before PostgreSQL, smtp4dev or bun was added doesn't have
   them: rebuild it ("Dev Containers: Rebuild Container").
 - Setup runs automatically when the container is created: `.env` is copied from
-  `.env.example` where it is missing, then `uv sync --frozen` and `npm ci`.
+  `.env.example` where it is missing, then `uv sync --frozen` and
+  `bun install --frozen-lockfile`.
 - Open http://localhost:5173. The client forwards 5173, 8080 and 5080 to the host. Demo
   users and the validation commands are the same as on the host.
 - Podman: set the VS Code setting `dev.containers.dockerPath` to `podman`.
   `.devcontainer/podman/` maps your user to `vscode` (`keep-id`), so the container
   can write the checkout under rootless Podman. `podman compose` needs
   docker-compose or podman-compose 1.2 or newer.
-- `npx @devcontainers/cli up --workspace-folder .` also builds and starts it; for
+- `bunx @devcontainers/cli up --workspace-folder .` also builds and starts it; for
   Podman add `--docker-path podman --config .devcontainer/podman/devcontainer.json`.
   That CLI doesn't forward ports, so it's good for tests but not for signing in
   from a host browser.
@@ -201,5 +204,5 @@ leaves it out, `uv run pytest -m online -rs` runs only it.
 In `web/`:
 
 ```bash
-npm run build
+bun run build
 ```
