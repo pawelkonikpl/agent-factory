@@ -1,4 +1,5 @@
-# Keycloak for local development only: dev mode, in-memory database, demo passwords.
+# Keycloak and PostgreSQL for local development only: Keycloak in dev mode, demo passwords,
+# no persistent data (both lose everything when their container is removed).
 services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.7.5
@@ -10,3 +11,18 @@ services:
       - "8080:8080"
     volumes:
       - ./realm-demo.json:/opt/keycloak/data/import/realm-demo.json:ro
+
+  postgres:
+    image: docker.io/library/postgres:18.6
+    environment:
+      POSTGRES_DB: emailsender
+      POSTGRES_USER: emailsender
+      POSTGRES_PASSWORD: emailsender
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "emailsender", "-d", "emailsender"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
