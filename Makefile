@@ -24,10 +24,10 @@ backend: ## Run the API (port 8001) and the BFF (port 8000); Ctrl-C stops both
 	kill $$api $$bff 2>/dev/null; wait; exit 1
 
 web: ## Start the web dev server on port 5173 until Ctrl-C
-	cd web && npm run dev
+	cd web && bun run dev
 
 web-build: ## Build the web app (type check plus production build into web/dist/)
-	cd web && npm run build
+	cd web && bun run build
 
 docker-up: ## Start Keycloak (port 8080), PostgreSQL (port 5432) and smtp4dev (ports 2525 and 5080) in the background (CONTAINER_ENGINE, default podman)
 	$(COMPOSE) up -d
