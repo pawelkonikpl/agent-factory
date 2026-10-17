@@ -39,7 +39,9 @@ def test_guard_derives_the_test_database_from_the_app_database() -> None:
 async def test_lifespan_migrates_the_database_to_head(
     database_url: str, session_factory: async_sessionmaker[AsyncSession]
 ) -> None:
-    settings = Settings(database_url=database_url, encryption_key=ENCRYPTION_KEY)
+    settings = Settings(
+        database_url=database_url, encryption_key=ENCRYPTION_KEY, seed_demo_data=False
+    )
     app = create_app(settings, session_factory=session_factory)
 
     async with app.router.lifespan_context(app):

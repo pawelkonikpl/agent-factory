@@ -459,7 +459,11 @@ async def test_lifespan_fails_a_campaign_left_in_sending(
     campaign = await create(session, [await add_client(session, "Acme")])
     campaign.status = CampaignStatus.SENDING
     await session.commit()
-    settings = Settings(database_url=database_url, encryption_key=EncryptionService.generate_key())
+    settings = Settings(
+        database_url=database_url,
+        encryption_key=EncryptionService.generate_key(),
+        seed_demo_data=False,
+    )
     app = create_app(settings, session_factory=session_factory)
 
     async with app.router.lifespan_context(app):

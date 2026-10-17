@@ -211,6 +211,7 @@ async def app(
         audience=AUDIENCE,
         database_url=database_url,
         encryption_key=EncryptionService.generate_key(),
+        seed_demo_data=False,
     )
     async with httpx.AsyncClient(transport=issuer.transport()) as outbound:
         yield create_app(settings, http_client=outbound, session_factory=session_factory)
