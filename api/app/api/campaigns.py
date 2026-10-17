@@ -1,8 +1,13 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, status
+from fastapi import APIRouter, BackgroundTasks, Body, Query, status
 
-from app.dependencies import CampaignServiceDep, PrincipalDep
+from app.dependencies import (
+    CampaignSenderDep,
+    CampaignServiceDep,
+    EmailMaxConcurrentDep,
+    PrincipalDep,
+)
 from app.schemas.base import Page, PageParamsDep
 from app.schemas.campaigns import CampaignCreateSchema, CampaignSchema, CampaignUpdateSchema
 
@@ -63,3 +68,23 @@ async def add_campaign_recipients(
     service: CampaignServiceDep,
 ) -> CampaignSchema:
     return service.to_schema(await service.add_recipients(campaign_id, client_ids))
+
+
+@router.post(
+    "/{campaign_id}/send", response_model=CampaignSchema, status_code=status.HTTP_202_ACCEPTED
+)
+async def send_campaign(
+    campaign_id: int,
+    principal: PrincipalDep,
+    sender: CampaignSenderDep,
+    service: CampaignServiceDep,
+    default_max_concurrent: EmailMaxConcurrentDep,
+    background_tasks: BackgroundTasks,
+    max_concurrent: int | None = Query(None, ge=1, le=50),
+) -> CampaignSchema:
+    # The checks and the move to sending happen here; the sends run after the response.
+    campaign, smtp_config = await sender.start(campaign_id, principal.subject)
+    if max_concurrent is None:
+        max_concurrent = default_max_concurrent
+    background_tasks.add_task(sender.run, campaign_id, smtp_config, max_concurrent)
+    return service.to_schema(campaign)

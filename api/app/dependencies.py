@@ -18,6 +18,7 @@ from app.repositories.client_repository import ClientRepository
 from app.repositories.config_repository import ConfigRepository
 from app.repositories.email_repository import EmailRepository
 from app.repositories.note_repository import NoteRepository
+from app.services.campaign_sender import CampaignSender
 from app.services.campaign_service import CampaignService
 from app.services.category_service import CategoryService
 from app.services.client_service import ClientService
@@ -36,6 +37,7 @@ class Container:
     sessions: async_sessionmaker[AsyncSession]
     encryption: EncryptionService
     email_sender_factory: EmailSenderFactory
+    email_max_concurrent: int
 
 
 def build_container(
@@ -51,7 +53,13 @@ def build_container(
         sessions=sessions,
         encryption=EncryptionService(settings.encryption_key.get_secret_value()),
         email_sender_factory=email_sender_factory,
+        email_max_concurrent=settings.email_max_concurrent,
     )
+
+
+def build_campaign_sender(container: Container, session: AsyncSession) -> CampaignSender:
+    smtp_configs = SmtpConfigService(ConfigRepository(session, container.encryption))
+    return CampaignSender(session, smtp_configs, container.sessions, container.email_sender_factory)
 
 
 def get_container(request: Request) -> Container:
@@ -127,3 +135,17 @@ def get_email_sender_factory(container: ContainerDep) -> EmailSenderFactory:
 
 
 EmailSenderFactoryDep = Annotated[EmailSenderFactory, Depends(get_email_sender_factory)]
+
+
+def get_campaign_sender(session: SessionDep, container: ContainerDep) -> CampaignSender:
+    return build_campaign_sender(container, session)
+
+
+CampaignSenderDep = Annotated[CampaignSender, Depends(get_campaign_sender)]
+
+
+def get_email_max_concurrent(container: ContainerDep) -> int:
+    return container.email_max_concurrent
+
+
+EmailMaxConcurrentDep = Annotated[int, Depends(get_email_max_concurrent)]

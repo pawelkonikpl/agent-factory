@@ -80,6 +80,7 @@ CAMPAIGN_BODY = {"name": "Jesień", "subject": "Nowości", "content": "Dzień do
         pytest.param("PUT", "/campaigns/1", {"name": "Zima"}, id="update"),
         pytest.param("DELETE", "/campaigns/1", None, id="delete"),
         pytest.param("POST", "/campaigns/1/recipients", [1], id="recipients"),
+        pytest.param("POST", "/campaigns/1/send", None, id="send"),
     ],
 )
 async def test_missing_token_answers_401(
@@ -281,6 +282,33 @@ async def test_changing_a_non_draft_answers_400(
     assert added.json() == {"detail": "Only draft campaigns can have recipients added"}
 
 
+async def test_changing_or_deleting_a_campaign_being_sent_answers_400(
+    client: httpx.AsyncClient,
+    bearer: BearerFactory,
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    acme = await create_client(client, bearer, "Acme")
+    created = await create(client, bearer)
+    await set_status(session_factory, created["id"], "sending")
+
+    updated = await client.put(
+        f"/campaigns/{created['id']}", json={"name": "Zima"}, headers=bearer()
+    )
+    deleted = await client.delete(f"/campaigns/{created['id']}", headers=bearer())
+    added = await client.post(
+        f"/campaigns/{created['id']}/recipients", json=[acme["id"]], headers=bearer()
+    )
+
+    for response in (updated, deleted):
+        assert (response.status_code, response.json()) == (
+            400,
+            {"detail": "Campaign is being sent"},
+        )
+    assert added.json() == {"detail": "Only draft campaigns can have recipients added"}
+    fetched = await client.get(f"/campaigns/{created['id']}", headers=bearer())
+    assert (fetched.json()["name"], fetched.json()["status"]) == ("Jesień", "sending")
+
+
 @pytest.mark.parametrize(
     ("method", "suffix", "body"),
     [
@@ -288,6 +316,7 @@ async def test_changing_a_non_draft_answers_400(
         pytest.param("PUT", "", {"name": "Zima"}, id="update"),
         pytest.param("DELETE", "", None, id="delete"),
         pytest.param("POST", "/recipients", [], id="recipients"),
+        pytest.param("POST", "/send", None, id="send"),
     ],
 )
 async def test_unknown_campaign_answers_404(
