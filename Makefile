@@ -29,13 +29,13 @@ web: ## Start the web dev server on port 5173 until Ctrl-C
 web-build: ## Build the web app (type check plus production build into web/dist/)
 	cd web && npm run build
 
-docker-up: ## Start Keycloak (port 8080) in the background (CONTAINER_ENGINE, default podman)
+docker-up: ## Start Keycloak (port 8080) and PostgreSQL (port 5432) in the background (CONTAINER_ENGINE, default podman)
 	$(COMPOSE) up -d
 
-docker-down: ## Stop and remove Keycloak (CONTAINER_ENGINE, default podman)
+docker-down: ## Stop and remove Keycloak and PostgreSQL (port 5432) (CONTAINER_ENGINE, default podman)
 	$(COMPOSE) down
 
-docker-logs: ## Follow Keycloak's logs until Ctrl-C (CONTAINER_ENGINE, default podman)
+docker-logs: ## Follow the logs of Keycloak and PostgreSQL (port 5432) until Ctrl-C (CONTAINER_ENGINE, default podman)
 	$(COMPOSE) logs -f
 
 sandbox-up: ## Build and start the full stack in containers (compose.yaml), web on port 5173

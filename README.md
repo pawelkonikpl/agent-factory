@@ -133,9 +133,9 @@ In this repo, `make dashboard` runs it from the repo root (pick another port
 with `make dashboard DASHBOARD_PORT=8090`).
 `make web` starts the web dev server, `make web-build` makes a production build
 of `web/`, and `make help` lists the other targets. `make sandbox-up` runs the
-demo app's full stack (Keycloak, API, BFF and web) in containers under Podman;
-see AGENTS.md. `.devcontainer/` is a dev container (with Keycloak) for coding on
-the demo app under Docker or Podman; see AGENTS.md.
+demo app's full stack (Keycloak, PostgreSQL, API, BFF and web) in containers under
+Podman; see AGENTS.md. `.devcontainer/` is a dev container (with Keycloak and
+PostgreSQL) for coding on the demo app under Docker or Podman; see AGENTS.md.
 
 ## The example jobs
 

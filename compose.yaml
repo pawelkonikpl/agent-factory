@@ -4,6 +4,8 @@
 # api, bff and web join keycloak's network namespace, so every service reaches the others
 # on localhost, just like the browser does, and the issuer and redirect URI stay valid.
 # keycloak therefore publishes all the ports; the BFF (8000) and the API (8001) stay internal.
+# postgres joins the same namespace, so the API reaches PostgreSQL on localhost:5432, which
+# is not published either. It keeps no data. api starts only once postgres is healthy.
 services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.7.5
@@ -17,13 +19,32 @@ services:
     volumes:
       - ./keycloak/realm-demo.json:/opt/keycloak/data/import/realm-demo.json:ro
 
+  postgres:
+    image: docker.io/library/postgres:18.6
+    environment:
+      POSTGRES_DB: emailsender
+      POSTGRES_USER: emailsender
+      POSTGRES_PASSWORD: emailsender
+    network_mode: "service:keycloak"
+    depends_on: [keycloak]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "emailsender", "-d", "emailsender"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   api:
     build:
       context: ./api
       dockerfile: Containerfile
     env_file: ./api/.env.example
     network_mode: "service:keycloak"
-    depends_on: [keycloak]
+    depends_on:
+      keycloak:
+        condition: service_started
+      postgres:
+        condition: service_healthy
 
   bff:
     build:
