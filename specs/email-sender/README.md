@@ -175,7 +175,8 @@ any credentials). Mail shows up at http://localhost:5080.
 ### 3.9 Seed (D22)
 
 Demo clients and campaigns are seeded at startup only when `API_SEED_DEMO_DATA` is true;
-`api/.env.example` sets it to true (API-14). There is no SMTP seed.
+`api/.env.example` sets it to true (API-14). There is no SMTP seed. The seeded addresses use
+reserved `.example` domains, so a seeded campaign can never reach a real company (D31).
 
 ### 3.10 The notes demo stays (D23)
 
@@ -327,12 +328,18 @@ anything else on the host using it, such as a host PostgreSQL.
 ## 9. Security notes
 
 - The API holds SMTP passwords encrypted with Fernet and never returns them. The demo key in
-  `api/.env.example` is a demo secret, allowed in git like the other dev-only secrets.
+  `api/.env.example` is a demo secret, allowed in git like the other dev-only secrets. Since
+  that key is public, a developer who saves a real SMTP password should first generate their
+  own `API_ENCRYPTION_KEY` in `api/.env`, or use smtp4dev (API-7 says so in `AGENTS.md`).
 - The API connects to whatever SMTP host and port a signed-in user saves, and the test
   endpoint does so on demand. That is the product (each user's own server), and the stack is
   dev-only and bound to 127.0.0.1; a production version would restrict the targets.
-- Campaign content is HTML written by users. The SPA renders it only sanitized (DOMPurify,
-  UI-11) and the API HTML-escapes the values it substitutes (API-11).
+- Campaign content is HTML written by users, and domain data is global, so one user previews
+  another user's HTML (edit, clone). The SPA sanitizes it with DOMPurify **and** renders it in
+  an `<iframe sandbox="">` (UI-11): no script, form or `<style>` in it can reach the app's own
+  page. The API HTML-escapes the values it substitutes (API-11).
+- The demo seed only uses reserved `.example` addresses (D31), so sending a seeded campaign
+  through a real SMTP account reaches nobody.
 - Logs carry recipient addresses and error messages, never passwords or email bodies.
 
 ## 10. Defects of the old version (do not repeat)
@@ -344,7 +351,7 @@ misleads; **Low** = quality.
 |---|---|---|---|
 | W-01 | High | Editing a client in the UI sent `PUT` without `additionalEmails`, `address` and `notes`; the backend treats `PUT` as a full replacement and **cleared those fields**. The form didn't show them either. | UI-7 (fields in the form, full payload) + API-5 (documented full replacement) |
 | W-02 | High | `clients.primary_email` and `categories.name` had a **global unique constraint**, while the service checked only non-deleted rows: after a soft delete, the same email or name could not be created again (IntegrityError, 500). | API-4, API-5 (partial unique indexes `WHERE is_deleted = false`) |
-| W-03 | High | The "review" step rendered HTML with `dangerouslySetInnerHTML` without sanitizing it (XSS). | UI-11 (DOMPurify) |
+| W-03 | High | The "review" step rendered HTML with `dangerouslySetInnerHTML` without sanitizing it (XSS). | UI-11 (DOMPurify, rendered in a sandboxed iframe) |
 | W-04 | High | The categories router had no auth dependency: its endpoints were public. | API-4 (`PrincipalDep` on every endpoint) |
 | W-05 | Medium | The wizard promised the variables `{name}`, `{email}` and `{company}`, but the backend sent the content without substituting them. | API-11 (D3) |
 | W-06 | Medium | The content field is a plain textarea, but mail goes out as HTML, so line breaks vanish in the mail client. No `text/plain` part. | API-11 (D4: `\n` to `<br>` for plain text) + UI-11 (preview); the `text/plain` part is deferred |
@@ -408,6 +415,7 @@ adaptations to this repo.
 | D28 | Page size. | `skip ≥ 0` (default 0), `limit` 1 to 1000 (default 100); 422 outside. The old UI's `limit=1000` workaround is gone, and an uncapped limit would load whole tables. |
 | D29 | Schema module. | `api/app/schemas.py` becomes the package `api/app/schemas/` (API-3), with the notes schemas in `notes.py`, unchanged. |
 | D30 | Request logging. | The source's request-logging middleware and `logging.basicConfig` are dropped: uvicorn's access log already logs method, path and status. |
+| D31 | Seed addresses. | The seed keeps the source's company names, phone numbers and notes, but its email domains become reserved `.example` domains (RFC 2606), for example `contact@acme-logistics.example`. The source's domains are real or registrable, and the seeded drafts are ready to send. `EmailStr` accepts `.example` (it rejects `.test` and `localhost`). |
 | D32 | Small screens. | Below MUI's `md` breakpoint the NavBar becomes a temporary drawer opened from a top bar (UI-4), and every table scrolls horizontally inside its own container (UI-3). Each screen is checked at 375 px. This takes in the source's optional small-screen NavBar (F12). |
 
 ## 12. Deferred

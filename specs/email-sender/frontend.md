@@ -824,7 +824,11 @@ Create a campaign in four steps, with a sanitized preview.
 - Clients for step 3: every client, fetched page by page (`limit=1000`) until `total` is
   reached [FIX: the old `limit: 1000` cut larger bases]. Inactive clients are listed with the
   chip "Nieaktywny" and are not added by category toggles.
-- [FIX W-03] Both previews render the content sanitized with DOMPurify.
+- [FIX W-03] Both previews (step 2's "Podgląd" and step 4) sanitize the content with DOMPurify
+  and render the result in an `<iframe sandbox="" srcDoc={…} referrerPolicy="no-referrer">`
+  with the `title` "Podgląd treści" *(new copy)*. The `sandbox` attribute stays empty: never
+  `allow-scripts`, `allow-same-origin` or `allow-forms`. Domain data is global, so a preview can
+  show another user's HTML; neither its `<style>` nor a `<form>` may reach the app's own page.
 - Submit: `createCampaign({ name, subject, content, recipientIds, scheduledFor })` with
   `scheduledFor` as an ISO string or left out; on success invalidate `["campaigns"]`, go to
   `/campaigns` and show the snackbar "Kampania została utworzona" *(new copy)*. "Anuluj" goes
@@ -832,8 +836,10 @@ Create a campaign in four steps, with a sanitized preview.
 
 ### Pitfalls
 
-- W-03: never `dangerouslySetInnerHTML` without DOMPurify; `<script>` and `on*` attributes must
-  not reach the DOM.
+- W-03: never `dangerouslySetInnerHTML`, and never the content in the app's own DOM. DOMPurify
+  alone keeps `<style>`, `<form>`, `<input>` and https `action`/`href` targets: in the page they
+  could restyle the app or fake a sign-in prompt. The empty-`sandbox` iframe blocks scripts,
+  forms and same-origin access; DOMPurify still strips the rest.
 - `datetime-local` has no timezone: convert with `new Date(value).toISOString()`.
 - `scheduledFor` is stored only; nothing will send at that time (D6). The copy must not promise
   a scheduled send: no "Zaplanowana" chip in the wizard.
@@ -850,10 +856,14 @@ UI-9, UI-7, API-9.
 2. Tests of the selection logic: a category selects its active clients; deselecting one client
    unchecks the category but keeps the others; the union of categories and clients.
 3. The request payload, with and without a date.
-4. Sanitizing: content with `<script>` and `<img onerror>` renders neither in the preview.
-5. In a browser with stubbed clients, categories and `POST /api/campaigns/`, the wizard works
-   end to end in both themes and from the keyboard.
-6. `bun run build` and `bun run test` pass.
+4. Sanitizing: the preview is an `iframe` with an empty `sandbox` attribute; content with
+   `<script>` and `<img onerror>` runs neither; content with `<style>` and `<form>` adds no style
+   rule and no form to the page's own document.
+5. With a date set, step 4 shows "Zapisz jako szkic" and the saved date, and no "Zaplanowana".
+6. In a browser with stubbed clients, categories and `POST /api/campaigns/`, the wizard works
+   end to end in both themes, from the keyboard and at 375 px, and ends on the list with the
+   "Kampania została utworzona" snackbar.
+7. `bun run build` and `bun run test` pass.
 
 ---
 

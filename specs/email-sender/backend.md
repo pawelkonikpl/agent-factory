@@ -471,14 +471,17 @@ returned. Details in `api-contract.md` §3.5.
   accepts `true`, `1`, `yes` in any case); `update_smtp_config`; `get_smtp_config_for_sending`
   → the frozen dataclass `SmtpConfig(smtp_server, smtp_port, smtp_user, smtp_password,
   smtp_use_tls)` with the decrypted password and the defaults port 587 and TLS on, or `None`
-  without a saved `smtp_server`. Never exposed through the API.
+  without a saved `smtp_server`. `smtp_password` is declared with `field(repr=False)`, so a log
+  line or a test failure never prints it. Never exposed through the API.
 - Schemas: `SmtpConfigResponseSchema`, `SmtpConfigUpdateSchema` (validators as in the
   contract; [FIX] `smtpUser` needn't be an email address), `MessageSchema`.
 - Router `app/api/config.py`, prefix `/config`, tag *Configuration*: `GET /config/smtp`,
   `PUT /config/smtp` → `{"message": "Configuration updated successfully"}`. The user is
   `principal.subject`.
 - `AGENTS.md`: an existing `api/.env` lacks the new required line; say to copy
-  `API_ENCRYPTION_KEY` from `api/.env.example` into it.
+  `API_ENCRYPTION_KEY` from `api/.env.example` into it. Also say that the demo key is public:
+  before saving a real SMTP password, generate your own key into `api/.env` (the command
+  above), or use smtp4dev.
 
 ### Pitfalls
 
@@ -956,15 +959,19 @@ idempotent.
   `clients_created`, `clients_skipped`, `campaigns_created`, `campaigns_skipped`,
   `recipients_created`. Idempotent: a client is found by `primary_email` (not deleted), a
   campaign by `name`.
-- Clients, exactly:
+- Clients, exactly. [FIX, D31] The names, phones and notes are the source's; the email domains
+  are reserved `.example` domains instead of the source's real or registrable ones
+  (`acme-logistics.com`, `brightdental.com`, `northwind-electronics.com`,
+  `greenfoods-market.com`, `pixelcraft.studio`), so a seeded draft sent through a real SMTP
+  account reaches nobody:
 
   | Company | Email | Phone | Notes |
   |---|---|---|---|
-  | Acme Logistics | contact@acme-logistics.com | +1-202-555-0101 | Priority logistics partner |
-  | Bright Dental Clinic | hello@brightdental.com | +1-202-555-0102 | Monthly newsletter subscriber |
-  | Northwind Electronics | sales@northwind-electronics.com | +1-202-555-0103 | Interested in product launch campaigns |
-  | Green Foods Market | owner@greenfoods-market.com | +1-202-555-0104 | Seasonal promo campaigns |
-  | Pixel Craft Studio | team@pixelcraft.studio | +1-202-555-0105 | Design partner |
+  | Acme Logistics | contact@acme-logistics.example | +1-202-555-0101 | Priority logistics partner |
+  | Bright Dental Clinic | hello@brightdental.example | +1-202-555-0102 | Monthly newsletter subscriber |
+  | Northwind Electronics | sales@northwind-electronics.example | +1-202-555-0103 | Interested in product launch campaigns |
+  | Green Foods Market | owner@greenfoods-market.example | +1-202-555-0104 | Seasonal promo campaigns |
+  | Pixel Craft Studio | team@pixelcraft.example | +1-202-555-0105 | Design partner |
 
 - Campaigns, all `draft`:
 
@@ -988,6 +995,8 @@ idempotent.
 - Keycloak subs are generated at realm import, so no per-user data can be seeded.
 - Idempotence by natural keys: a second run must create nothing and skip everything.
 - The subject's emoji is deliberate: it exercises the UTF-8 subject from API-8.
+- Never seed a real or registrable domain (D31). `EmailStr` accepts `.example` but rejects
+  `.test` and `localhost`, so those can't be used instead.
 
 ### Depends on
 
@@ -996,7 +1005,7 @@ API-5, API-9, API-11.
 ### Acceptance criteria
 
 1. On an empty test database the seed creates 5 clients, 3 campaigns and 7 recipients with the
-   values above.
+   values above; every seeded email address ends in `.example`.
 2. A second run creates nothing: 5 clients and 3 campaigns skipped, 0 recipients created.
 3. The lifespan seeds with the setting on and doesn't with it off; a seed error is logged and
    the app still starts.

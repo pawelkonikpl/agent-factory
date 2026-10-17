@@ -24,7 +24,7 @@ Goal: the resource server stores clients, categories and campaigns in PostgreSQL
 - [ ] Send campaigns in the background: `POST /campaigns/{id}/send` checks the request, moves the campaign to `sending` atomically and answers 202, a background task sends with a semaphore and commits each result, and a startup sweep fails campaigns a restart interrupted, as specified in `specs/email-sender/backend.md` API-11 (covers B8, send part)
 - [ ] Add `POST /campaigns/{id}/resend` for all or chosen failed recipients, through the same background flow, as specified in `specs/email-sender/backend.md` API-12 (covers B8, resend part)
 - [ ] Add `POST /emails/{id}/resend`, a synchronous single-email resend within the BFF's timeout, as specified in `specs/email-sender/backend.md` API-13 (covers B9, resend part)
-- [ ] Seed the demo clients and campaigns at startup when `API_SEED_DEMO_DATA` is true, idempotently, as specified in `specs/email-sender/backend.md` API-14 (covers B10)
+- [ ] Seed the demo clients (on reserved `.example` email domains) and campaigns at startup when `API_SEED_DEMO_DATA` is true, idempotently, as specified in `specs/email-sender/backend.md` API-14 (covers B10)
 
 ## Phase 5: Email Sender UI
 
@@ -40,6 +40,6 @@ Goal: a signed-in user manages clients, categories, campaigns and SMTP settings 
 - [ ] Add the SMTP settings screen with the test email, as specified in `specs/email-sender/frontend.md` UI-8 (covers F9)
 - [ ] Add the campaign list: table, status chips, stats, search, pagination, clone and delete, as specified in `specs/email-sender/frontend.md` UI-9 (covers F6 without send)
 - [ ] Add campaign send and resend from the list, with "W trakcie" progress and status polling until the send ends, as specified in `specs/email-sender/frontend.md` UI-10 (covers F6, send part)
-- [ ] Add the campaign wizard for creating a campaign, with sanitized previews, as specified in `specs/email-sender/frontend.md` UI-11 (covers F7)
+- [ ] Add the campaign wizard for creating a campaign, with sanitized previews in a sandboxed iframe, as specified in `specs/email-sender/frontend.md` UI-11 (covers F7)
 - [ ] Add the campaign wizard's edit mode for draft campaigns, as specified in `specs/email-sender/frontend.md` UI-12 (covers F7, edit mode)
 - [ ] Add the email log screen with stats, pagination and single-email resend, as specified in `specs/email-sender/frontend.md` UI-13 (covers F8)
