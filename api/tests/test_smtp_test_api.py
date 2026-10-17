@@ -1,6 +1,8 @@
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
+from typing import Any
 
+import aiosmtplib
 import httpx
 import pytest
 from fastapi import FastAPI
@@ -10,7 +12,12 @@ from app.config import Settings
 from app.main import create_app
 from app.services.encryption import EncryptionService
 from app.services.smtp_config_service import SmtpConfig
-from app.services.smtp_sender import SendResult
+from app.services.smtp_sender import (
+    LOGIN_WITHOUT_TLS_ERROR,
+    EmailSender,
+    SendResult,
+    SmtpEmailSender,
+)
 from tests.conftest import AUDIENCE, ISSUER, BearerFactory, FakeIssuer
 
 SETTINGS = {
@@ -24,17 +31,21 @@ SETTINGS = {
 
 @dataclass
 class FakeSenders:
-    """A fake EmailSenderFactory: records the configs and sends, answers with `result`."""
+    """A fake EmailSenderFactory: records the configs and sends, answers with `result`.
+
+    With `real` set it hands out the real SmtpEmailSender instead.
+    """
 
     result: SendResult = field(
         default_factory=lambda: SendResult(success=True, smtp_message_id="<1@test>", error=None)
     )
     configs: list[SmtpConfig] = field(default_factory=list)
     sent: list[tuple[str, str, str]] = field(default_factory=list)
+    real: bool = False
 
-    def __call__(self, config: SmtpConfig) -> "FakeSenders":
+    def __call__(self, config: SmtpConfig) -> EmailSender:
         self.configs.append(config)
-        return self
+        return SmtpEmailSender(config) if self.real else self
 
     async def send(self, to: str, subject: str, html_body: str) -> SendResult:
         self.sent.append((to, subject, html_body))
@@ -133,6 +144,26 @@ async def test_failed_send_answers_400_with_the_error(
 
     assert response.status_code == 400
     assert response.json() == {"detail": "SMTP Authentication failed: (535, 'no')"}
+
+
+async def test_login_without_tls_answers_400_without_connecting(
+    client: httpx.AsyncClient,
+    bearer: BearerFactory,
+    senders: FakeSenders,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connections: list[dict[str, Any]] = []
+    monkeypatch.setattr(aiosmtplib, "SMTP", lambda **kwargs: connections.append(kwargs))
+    senders.real = True
+    await client.put("/config/smtp", json=SETTINGS, headers=bearer())
+
+    response = await client.post(
+        "/config/smtp/test", json={"recipient": "jan@example.com"}, headers=bearer()
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": LOGIN_WITHOUT_TLS_ERROR}
+    assert connections == []
 
 
 async def test_invalid_recipient_answers_422(

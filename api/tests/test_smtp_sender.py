@@ -10,7 +10,13 @@ import pytest
 
 from app.services import smtp_sender
 from app.services.smtp_config_service import SmtpConfig
-from app.services.smtp_sender import EmailItem, SendResult, SmtpEmailSender, send_many
+from app.services.smtp_sender import (
+    LOGIN_WITHOUT_TLS_ERROR,
+    EmailItem,
+    SendResult,
+    SmtpEmailSender,
+    send_many,
+)
 
 RECIPIENT = "jan@example.com"
 
@@ -128,12 +134,38 @@ async def test_no_login_without_a_password(smtp: FakeSmtp) -> None:
 async def test_tls_arguments(
     smtp: FakeSmtp, port: int, use_tls: bool, expected: dict[str, bool]
 ) -> None:
-    await SmtpEmailSender(make_config(smtp_port=port, smtp_use_tls=use_tls)).send(
-        RECIPIENT, "s", "b"
-    )
+    # No password, so TLS off still connects (a login without TLS is refused, see below).
+    config = make_config(smtp_port=port, smtp_use_tls=use_tls, smtp_password=None)
+
+    await SmtpEmailSender(config).send(RECIPIENT, "s", "b")
 
     base = {"hostname": "smtp.example.com", "port": port, "timeout": 8}
     assert smtp.kwargs == base | expected
+
+
+async def test_login_without_tls_is_refused_before_connecting(
+    smtp: FakeSmtp, caplog: pytest.LogCaptureFixture
+) -> None:
+    config = make_config(smtp_port=2525, smtp_use_tls=False)
+
+    result = await SmtpEmailSender(config).send(RECIPIENT, "s", "<p>secret body</p>")
+
+    assert result == SendResult(success=False, smtp_message_id=None, error=LOGIN_WITHOUT_TLS_ERROR)
+    assert smtp.kwargs == {}
+    assert smtp.logins == []
+    assert smtp.messages == []
+    assert RECIPIENT in caplog.text
+    assert "secret-password" not in caplog.text
+
+
+async def test_sends_without_tls_when_there_is_no_password(smtp: FakeSmtp) -> None:
+    config = make_config(smtp_port=2525, smtp_use_tls=False, smtp_password=None)
+
+    result = await SmtpEmailSender(config).send(RECIPIENT, "s", "b")
+
+    assert result.success
+    assert smtp.logins == []
+    assert len(smtp.messages) == 1
 
 
 @pytest.mark.parametrize(
@@ -269,7 +301,7 @@ async def test_sends_through_smtp4dev() -> None:
         smtp_server="localhost",
         smtp_port=2525,
         smtp_user="noreply@localhost",
-        smtp_password="any",
+        smtp_password=None,
         smtp_use_tls=False,
     )
 

@@ -19,6 +19,10 @@ logger = logging.getLogger(__name__)
 # Below the BFF's 10 s proxy timeout, so a synchronous send answers before the BFF gives up.
 SMTP_TIMEOUT_SECONDS = 8
 IMPLICIT_TLS_PORT = 465
+LOGIN_WITHOUT_TLS_ERROR = (
+    "SMTP error: login without TLS is not allowed, the password would be sent in clear text. "
+    "Turn TLS on."
+)
 
 
 @dataclass(frozen=True)
@@ -66,7 +70,11 @@ class SmtpEmailSender:
         self._config = config
 
     async def send(self, to: str, subject: str, html_body: str) -> SendResult:
-        message = build_message(self._config.smtp_user, to, subject, html_body)
+        config = self._config
+        message = build_message(config.smtp_user, to, subject, html_body)
+        if config.smtp_user and config.smtp_password and not config.smtp_use_tls:
+            # Refused before connecting, so the password never goes over the wire unencrypted.
+            return self._failed(to, LOGIN_WITHOUT_TLS_ERROR)
         # Most specific first: the aiosmtplib errors are SMTPException subclasses, and its
         # timeouts are TimeoutError too, so every timeout gets the same message.
         try:
@@ -84,6 +92,9 @@ class SmtpEmailSender:
             error = f"Unexpected error: {exc}"
         else:
             return SendResult(success=True, smtp_message_id=message["Message-ID"], error=None)
+        return self._failed(to, error)
+
+    def _failed(self, to: str, error: str) -> SendResult:
         # Neither the password nor the body goes into the log.
         logger.warning("Sending email to %s failed: %s", to, error)
         return SendResult(success=False, smtp_message_id=None, error=error)
