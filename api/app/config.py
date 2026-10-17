@@ -11,3 +11,6 @@ class Settings(BaseSettings):
     audience: str = "demo-api"
     http_timeout_seconds: float = 5.0
     jwks_min_refresh_interval_seconds: float = 60.0
+    database_url: str = "postgresql+asyncpg://emailsender:emailsender@localhost:5432/emailsender"
+    # Tests only: the database tests/conftest.py uses (its name must contain "test").
+    test_database_url: str | None = None

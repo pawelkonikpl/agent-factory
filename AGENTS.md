@@ -43,6 +43,10 @@ The Keycloak compose file also starts PostgreSQL on 127.0.0.1:5432 (database, us
 and password `emailsender`, dev only, no persistent data). A PostgreSQL already
 running on the host on 5432 clashes with it: stop that one first.
 
+The API needs PostgreSQL: start it first (`make docker-up`). At startup the API
+runs `alembic upgrade head` (`api/alembic.ini`, `api/migrations/`) against
+`API_DATABASE_URL`; without PostgreSQL it logs the error and does not start.
+
 Open http://localhost:5173. Demo users `alice`/`alice` and `bob`/`bob` (dev only).
 
 The root `Makefile` wraps these: `make docker-up` (also `docker-down`,
@@ -153,6 +157,12 @@ uv run pytest
 uv run ruff check .
 uv run mypy app tests
 ```
+
+In `api/`, `uv run pytest` needs PostgreSQL running (any run mode's). It creates
+the `emailsender_test` database itself, resets its schema and runs the migrations
+on it; override it with `API_TEST_DATABASE_URL`, whose database name must contain
+`test`. When PostgreSQL is not reachable, the tests fail with a message naming the
+host and port.
 
 In `web/`:
 

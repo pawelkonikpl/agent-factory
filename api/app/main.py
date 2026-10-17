@@ -3,6 +3,7 @@
 Run with: uvicorn app.main:create_app --factory --port 8001
 """
 
+import asyncio
 import logging
 import time
 from collections.abc import AsyncIterator
@@ -11,10 +12,12 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.api import notes
 from app.clock import Clock
 from app.config import Settings
+from app.database import create_engine, create_session_factory, run_migrations
 from app.dependencies import build_container
 from app.errors import InvalidTokenError, KeySetUnavailableError
 
@@ -28,18 +31,32 @@ def create_app(
     *,
     http_client: httpx.AsyncClient | None = None,
     clock: Clock = time.monotonic,
+    session_factory: async_sessionmaker[AsyncSession] | None = None,
 ) -> FastAPI:
     settings = settings or Settings()
     http = http_client or httpx.AsyncClient(timeout=settings.http_timeout_seconds)
+    # The app disposes only an engine it built; an injected factory belongs to the caller.
+    engine: AsyncEngine | None = None
+    if session_factory is None:
+        engine = create_engine(settings.database_url)
+        session_factory = create_session_factory(engine)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        # The async env.py calls asyncio.run, which cannot run inside this loop.
+        try:
+            await asyncio.to_thread(run_migrations, settings.database_url)
+        except Exception:
+            logger.exception("Database migration failed")
+            raise
         yield
         if http_client is None:
             await http.aclose()
+        if engine is not None:
+            await engine.dispose()
 
     app = FastAPI(title="Demo notes API", lifespan=lifespan)
-    app.state.container = build_container(settings, http, clock)
+    app.state.container = build_container(settings, http, clock, session_factory)
     app.include_router(notes.router)
 
     @app.get("/health", include_in_schema=False)

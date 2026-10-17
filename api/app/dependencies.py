@@ -1,11 +1,13 @@
 """Wiring of services and FastAPI dependency providers."""
 
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Annotated, cast
 
 import httpx
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.clock import Clock
 from app.config import Settings
@@ -19,12 +21,19 @@ from app.services.token_verifier import AccessTokenVerifier, Principal
 class Container:
     verifier: AccessTokenVerifier
     notes: NoteService
+    sessions: async_sessionmaker[AsyncSession]
 
 
-def build_container(settings: Settings, http: httpx.AsyncClient, clock: Clock) -> Container:
+def build_container(
+    settings: Settings,
+    http: httpx.AsyncClient,
+    clock: Clock,
+    sessions: async_sessionmaker[AsyncSession],
+) -> Container:
     return Container(
         verifier=AccessTokenVerifier(settings, http, clock),
         notes=NoteService(NoteRepository()),
+        sessions=sessions,
     )
 
 
@@ -50,5 +59,12 @@ def get_note_service(container: ContainerDep) -> NoteService:
     return container.notes
 
 
+async def get_session(container: ContainerDep) -> AsyncIterator[AsyncSession]:
+    # One session per request, closed when the response is done.
+    async with container.sessions() as session:
+        yield session
+
+
 PrincipalDep = Annotated[Principal, Depends(get_principal)]
 NoteServiceDep = Annotated[NoteService, Depends(get_note_service)]
+SessionDep = Annotated[AsyncSession, Depends(get_session)]
