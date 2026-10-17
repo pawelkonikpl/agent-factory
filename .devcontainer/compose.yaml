@@ -5,7 +5,9 @@
 # localhost:8080 is Keycloak inside the container, just as it is for the browser.
 # postgres joins the same namespace, so localhost:5432 is PostgreSQL (no persistent
 # data); dev starts once it is healthy.
-# Nothing is published: the Dev Containers client forwards 5173 and 8080 to the host.
+# smtp4dev (dev SMTP server, no persistent mail) joins it too: SMTP on localhost:2525,
+# inbox on localhost:5080.
+# Nothing is published: the Dev Containers client forwards 5173, 8080 and 5080 to the host.
 services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.7.5
@@ -30,6 +32,14 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  smtp4dev:
+    image: docker.io/rnwood/smtp4dev:3.15.0
+    environment:
+      ServerOptions__Port: "2525"
+      ServerOptions__Urls: "http://*:5080"
+    network_mode: "service:keycloak"
+    depends_on: [keycloak]
 
   dev:
     # The context is this folder only, so no .env file can end up in the image.

@@ -6,6 +6,8 @@
 # keycloak therefore publishes all the ports; the BFF (8000) and the API (8001) stay internal.
 # postgres joins the same namespace, so the API reaches PostgreSQL on localhost:5432, which
 # is not published either. It keeps no data. api starts only once postgres is healthy.
+# smtp4dev (dev SMTP server, no persistent mail) joins it too: the API reaches SMTP on
+# localhost:2525, which is not published; keycloak publishes its inbox on 5080.
 services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.7.5
@@ -16,6 +18,7 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
       - "127.0.0.1:5173:5173"
+      - "127.0.0.1:5080:5080"
     volumes:
       - ./keycloak/realm-demo.json:/opt/keycloak/data/import/realm-demo.json:ro
 
@@ -33,6 +36,14 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  smtp4dev:
+    image: docker.io/rnwood/smtp4dev:3.15.0
+    environment:
+      ServerOptions__Port: "2525"
+      ServerOptions__Urls: "http://*:5080"
+    network_mode: "service:keycloak"
+    depends_on: [keycloak]
 
   api:
     build:

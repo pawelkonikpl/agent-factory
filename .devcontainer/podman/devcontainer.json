@@ -17,10 +17,11 @@
   "updateRemoteUserUID": false,
   // The redirect URI and the issuer are fixed to these localhost ports, so the
   // client must fail rather than forward them to other ports.
-  "forwardPorts": [5173, 8080],
+  "forwardPorts": [5173, 8080, 5080],
   "portsAttributes": {
     "5173": { "label": "web", "requireLocalPort": true },
-    "8080": { "label": "Keycloak", "requireLocalPort": true }
+    "8080": { "label": "Keycloak", "requireLocalPort": true },
+    "5080": { "label": "smtp4dev" }
   },
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "postStartCommand": "bash .devcontainer/post-start.sh"
