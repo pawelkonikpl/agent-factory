@@ -11,7 +11,7 @@ OAuth/OIDC Backend-for-Frontend demo plus the software factory that builds on it
 - `compose.yaml` (root): the dev-only sandbox that runs the whole stack in containers, built from the `Containerfile` in each of `api/`, `bff/` and `web/`.
 - `.devcontainer/`: dev-only coding environment (dev container plus Keycloak), see "Dev container".
 - `.claude/`, `factory/`: the software factory (skill, agents, dashboard served by `factory/serve.py`, backlog). See README.md.
-- `specs/`: `mission.md` (why the repo exists, its principles and non-goals; read it before planning a feature) and `features/` (one spec per factory job, `<job-id>.md`, committed with the code it describes). The roadmap is `factory/backlog.md`.
+- `specs/`: `mission.md` (why the repo exists, its principles and non-goals; read it before planning a feature), `features/` (one spec per factory job, `<job-id>.md`, committed with the code it describes) and `email-sender/` (the Email Sender's product docs, HTTP contract and per-item specs, with the roadmap phases to add to `factory/backlog.md` in `roadmap.md`). The roadmap is `factory/backlog.md`.
 
 ## Setup (fresh checkout)
 

@@ -15,7 +15,10 @@ Two things that grow together:
 2. **The OAuth/OIDC Backend-for-Frontend demo** (`bff/`, `api/`, `web/`,
    `keycloak/`): a full-stack app the factory builds on. It shows a browser app
    signing in with OIDC without ever handling tokens, and gives the factory real
-   code, real security concerns and real pages to work on.
+   code, real security concerns and real pages to work on. The app built on the
+   BFF is the Email Sender: clients, categories and email campaigns sent through
+   the user's own SMTP server, specified in `specs/email-sender/`. It sits
+   alongside the original notes demo.
 
 ## Who it is for
 
