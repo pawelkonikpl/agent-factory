@@ -318,3 +318,7 @@ All commands run in `api/` with PostgreSQL reachable on localhost:5432. `TEST_DB
 - Path IDs outside int32 and NUL bytes end in a 500, as in the other areas. Reason: 012's known
   behaviour; fixing it for one area alone would make them differ. A security decision for a
   human.
+
+## Changes
+
+rekordy maja ni byc usuwane tylko ozanczane jako usuniete i poprwa blad 500 zeby zwracal 422
