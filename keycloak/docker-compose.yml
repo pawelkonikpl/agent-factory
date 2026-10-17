@@ -1,5 +1,6 @@
-# Keycloak and PostgreSQL for local development only: Keycloak in dev mode, demo passwords,
-# no persistent data (both lose everything when their container is removed).
+# Keycloak, PostgreSQL and smtp4dev for local development only: Keycloak in dev mode, demo
+# passwords, no persistent data (all lose everything when their container is removed).
+# smtp4dev is a dev SMTP server: SMTP on 127.0.0.1:2525, inbox at http://localhost:5080.
 services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.7.5
@@ -26,3 +27,12 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  smtp4dev:
+    image: docker.io/rnwood/smtp4dev:3.15.0
+    environment:
+      ServerOptions__Port: "2525"
+      ServerOptions__Urls: "http://*:5080"
+    ports:
+      - "127.0.0.1:2525:2525"
+      - "127.0.0.1:5080:5080"

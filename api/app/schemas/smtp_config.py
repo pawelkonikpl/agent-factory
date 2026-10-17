@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from pydantic import AfterValidator, Field
+from pydantic import AfterValidator, EmailStr, Field
 
 from app.schemas.base import BaseSchema
 
@@ -44,3 +44,12 @@ class SmtpConfigUpdateSchema(BaseSchema):
     smtp_user: Annotated[str, AfterValidator(validate_smtp_user)] | None = None
     smtp_password: Annotated[str, AfterValidator(validate_smtp_password)] | None = None
     smtp_use_tls: bool | None = None
+
+
+class SmtpTestRequestSchema(BaseSchema):
+    recipient: EmailStr
+
+
+class SmtpTestResultSchema(BaseSchema):
+    success: bool
+    message: str

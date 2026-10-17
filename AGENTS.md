@@ -7,9 +7,9 @@ OAuth/OIDC Backend-for-Frontend demo plus the software factory that builds on it
 - `bff/`: FastAPI Backend-for-Frontend, the OAuth confidential client (login, logout, CSRF, sessions, `/api` proxy). Python, uv.
 - `api/`: FastAPI resource server (notes per user), verifies JWTs from Keycloak. Python, uv.
 - `web/`: Vite + React + TypeScript SPA. UI copy is Polish. The Vite dev server serves it in development, and `npm run build` writes a static bundle to `web/dist/` for a separate static host that shares its origin with the BFF (proxying `/bff` and `/api`), since `bff/` and `api/` serve no frontend files. The SPA talks to the backend only through `/bff/*` (session) and `/api/*` (the BFF proxy).
-- `keycloak/`: dev-only Keycloak and PostgreSQL (`docker-compose.yml`) and the `demo` realm (`realm-demo.json`).
+- `keycloak/`: dev-only Keycloak, PostgreSQL and smtp4dev (`docker-compose.yml`) and the `demo` realm (`realm-demo.json`).
 - `compose.yaml` (root): the dev-only sandbox that runs the whole stack in containers, built from the `Containerfile` in each of `api/`, `bff/` and `web/`.
-- `.devcontainer/`: dev-only coding environment (dev container plus Keycloak and PostgreSQL), see "Dev container".
+- `.devcontainer/`: dev-only coding environment (dev container plus Keycloak, PostgreSQL and smtp4dev), see "Dev container".
 - `.claude/`, `factory/`: the software factory (skill, agents, dashboard served by `factory/serve.py`, backlog). See README.md.
 - `specs/`: `mission.md` (why the repo exists, its principles and non-goals; read it before planning a feature), `features/` (one spec per factory job, `<job-id>.md`, committed with the code it describes) and `email-sender/` (the Email Sender's product docs, HTTP contract and per-item specs for Phases 4 and 5 of the backlog). The roadmap is `factory/backlog.md`.
 
@@ -30,14 +30,14 @@ API, its tests and `alembic` don't start. Copy that line from `api/.env.example`
 demo key there is public (it is in git): before saving a real SMTP password, generate
 your own key into `api/.env` with
 `cd api && uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`,
-or use a dev SMTP server (smtp4dev, coming with API-8).
+or use the dev SMTP server smtp4dev (values under "Run locally").
 
 ## Run locally
 
 Each command in its own terminal, from the repo root:
 
 ```bash
-podman compose -f keycloak/docker-compose.yml up -d                  # Keycloak, port 8080 (admin/admin), and PostgreSQL, port 5432
+podman compose -f keycloak/docker-compose.yml up -d                  # Keycloak, port 8080 (admin/admin), PostgreSQL, port 5432, and smtp4dev, ports 2525 and 5080
 cd api && uv run uvicorn app.main:create_app --factory --port 8001    # API, port 8001
 cd bff && uv run uvicorn app.main:create_app --factory --port 8000    # BFF, port 8000
 cd web && npm run dev                                                 # web, port 5173
@@ -49,6 +49,15 @@ Docker works too: `docker compose -f keycloak/docker-compose.yml up -d` or
 The Keycloak compose file also starts PostgreSQL on 127.0.0.1:5432 (database, user
 and password `emailsender`, dev only, no persistent data). A PostgreSQL already
 running on the host on 5432 clashes with it: stop that one first.
+
+It also starts smtp4dev, a dev SMTP server that accepts every message and keeps it
+in an inbox instead of delivering it (no persistent mail): SMTP on 127.0.0.1:2525,
+inbox at http://localhost:5080. Anything else listening on 2525 or 5080 clashes with
+it. To send through it, enter these values in "Ustawienia": server `localhost`, port
+`2525`, TLS off, user `noreply@localhost` (also the `From` address) and no password.
+With TLS off the API refuses to log in, so it never sends a password in clear text:
+with a saved password, `POST /config/smtp/test` answers 400. A saved password can't be
+cleared, so for smtp4dev sign in as a demo user that has none saved.
 
 The API needs PostgreSQL: start it first (`make docker-up`). At startup the API
 runs `alembic upgrade head` (`api/alembic.ini`, `api/migrations/`) against
@@ -84,13 +93,13 @@ Ctrl-C stops both), `make web` (web dev server, port 5173), `make web-build`
 
 ## Sandbox
 
-The root `compose.yaml` runs Keycloak, PostgreSQL, the API, the BFF and the web
-dev server in containers. It needs Podman with a compose provider (`podman compose`
+The root `compose.yaml` runs Keycloak, PostgreSQL, smtp4dev, the API, the BFF and
+the web dev server in containers. It needs Podman with a compose provider (`podman compose`
 delegates to docker-compose or podman-compose); on macOS run
 `podman machine start` first.
 
 ```bash
-make sandbox-up      # build the images and start all five services
+make sandbox-up      # build the images and start all six services
 make sandbox-logs    # follow the logs until Ctrl-C
 make sandbox-down    # stop and remove the containers
 ```
@@ -100,6 +109,10 @@ make sandbox-down    # stop and remove the containers
 - The fifth service, `postgres` (PostgreSQL, database, user and password
   `emailsender`, no persistent data), is reachable on localhost:5432 inside the
   shared namespace only and is not published. `api` starts once it is healthy.
+- The sixth service, `smtp4dev` (no persistent mail), shows its inbox on
+  http://localhost:5080. Its SMTP port, 2525, is reachable inside the shared
+  namespace only and is not published; the "Ustawienia" values are the ones under
+  "Run locally".
 - It uses the `.env.example` values, not `bff/.env` or `api/.env`.
 - The source is baked into the images, with no live reload: after a code change
   run `make sandbox-up` again to rebuild.
@@ -114,7 +127,10 @@ make sandbox-down    # stop and remove the containers
 make. Keycloak runs as a second container that shares its network, so
 `localhost:8080` inside it is Keycloak. PostgreSQL runs as a third container on the
 same network, so `localhost:5432` inside it is PostgreSQL (database, user and
-password `emailsender`, no persistent data, not forwarded to the host). It needs Docker or Podman and a Dev
+password `emailsender`, no persistent data, not forwarded to the host). smtp4dev runs
+as a fourth container on the same network: SMTP on `localhost:2525` inside it (the
+"Ustawienia" values are the ones under "Run locally"), and its inbox on 5080, which
+the client forwards to http://localhost:5080. It needs Docker or Podman and a Dev
 Containers client, such as VS Code with the Dev Containers extension ("Dev
 Containers: Reopen in Container"). VS Code asks which configuration to use: "OAuth
 BFF demo" for Docker, "OAuth BFF demo (Podman)" for Podman.
@@ -129,11 +145,11 @@ make backend    # API and BFF
 make web        # web dev server, port 5173
 ```
 
-- A dev container created before PostgreSQL was added doesn't have it: rebuild it
-  ("Dev Containers: Rebuild Container").
+- A dev container created before PostgreSQL or smtp4dev was added doesn't have
+  them: rebuild it ("Dev Containers: Rebuild Container").
 - Setup runs automatically when the container is created: `.env` is copied from
   `.env.example` where it is missing, then `uv sync --frozen` and `npm ci`.
-- Open http://localhost:5173. The client forwards 5173 and 8080 to the host. Demo
+- Open http://localhost:5173. The client forwards 5173, 8080 and 5080 to the host. Demo
   users and the validation commands are the same as on the host.
 - Podman: set the VS Code setting `dev.containers.dockerPath` to `podman`.
   `.devcontainer/podman/` maps your user to `vscode` (`keep-id`), so the container
@@ -170,6 +186,11 @@ the `emailsender_test` database itself, resets its schema and runs the migration
 on it; override it with `API_TEST_DATABASE_URL`, whose database name must contain
 `test`. When PostgreSQL is not reachable, the tests fail with a message naming the
 host and port.
+
+`uv run pytest` in `api/` includes one test marked `online` that sends a real email
+through smtp4dev on `localhost:2525` (`make docker-up`, or inside the dev
+container; the sandbox doesn't publish 2525). It skips when smtp4dev is not running; `uv run pytest -m "not online"`
+leaves it out, `uv run pytest -m online -rs` runs only it.
 
 In `web/`:
 
