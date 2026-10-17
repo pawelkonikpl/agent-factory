@@ -14,6 +14,7 @@ dependencies = [
     "alembic>=1.20.0",
     "pydantic[email]>=2.11",
     "cryptography>=50.0.2",
+    "aiosmtplib>=5.1",
 ]
 
 [dependency-groups]
@@ -31,6 +32,7 @@ package = false
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+markers = ["online: sends through smtp4dev on localhost:2525; skips when it is not running"]
 
 [tool.ruff]
 line-length = 100
