@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     test_database_url: str | None = None
     # Sends at once per campaign when POST /campaigns/{id}/send gives no max_concurrent (D10).
     email_max_concurrent: int = Field(10, ge=1, le=50)
+    # Seeds the demo clients and campaigns at startup, idempotently (D22). Dev only.
+    seed_demo_data: bool = False
     # Encrypts the stored SMTP passwords. Required: the API does not start without it.
     encryption_key: SecretStr
 
