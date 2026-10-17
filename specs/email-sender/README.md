@@ -246,7 +246,7 @@ web/src/
 │                 clients-api.ts, smtp-config-api.ts, campaigns-api.ts, emails-api.ts
 ├── hooks/        use-session.ts, use-notes.ts, use-debounce.ts, use-categories.ts, use-clients.ts,
 │                 use-smtp-config.ts, use-campaigns.ts, use-emails.ts
-├── utils/        error-message.ts
+├── utils/        error-message.ts, plural.ts
 ├── components/   ui/ (shared), layout/ (nav bar, app layout, error boundary), categories/,
 │                 clients/, settings/, campaigns/ (list, send, wizard and its steps), emails/,
 │                 plus the existing login-screen.tsx, notes-panel.tsx and token-check.tsx
@@ -383,7 +383,7 @@ adaptations to this repo.
 | D3 | `{name}` / `{email}` / `{company}` in the content. | Implement (API-11): `{company}` = `companyName`, `{name}` = `companyName` (a client has no person field), `{email}` = `primaryEmail`. Unknown keys stay as they are. Values are HTML-escaped. |
 | D4 | Content format. | HTML. The editor is a multiline field with a preview. Content without HTML tags is HTML-escaped and gets `\n` → `<br>` on the server (API-11). The SPA sanitizes the preview (UI-11). |
 | D5 | Global or per-user domain data. | Global (parity); only `configs` is per user. |
-| D6 | Scheduled campaigns (`scheduled`). | Store `scheduledFor` only; nothing sends it later and nothing sets the `scheduled` status. The scheduler (B13) is deferred. |
+| D6 | Scheduled campaigns (`scheduled`). | Store `scheduledFor` only; nothing sends it later and nothing sets the `scheduled` status. The scheduler (B13) is deferred. The wizard says so: the date's helper text and the review step don't promise a scheduled send (UI-11). |
 | D7 | Client import from Excel. | Deferred (F11). `POST /clients/bulk` is still built, as its own item (API-6). |
 | D8 | Open and click tracking. | Deferred (B14). The UI hides "Otwarte", "Kliknięcia" and the activity column. |
 | D9 | A `/help` page. | No link and no page. |
@@ -408,6 +408,7 @@ adaptations to this repo.
 | D28 | Page size. | `skip ≥ 0` (default 0), `limit` 1 to 1000 (default 100); 422 outside. The old UI's `limit=1000` workaround is gone, and an uncapped limit would load whole tables. |
 | D29 | Schema module. | `api/app/schemas.py` becomes the package `api/app/schemas/` (API-3), with the notes schemas in `notes.py`, unchanged. |
 | D30 | Request logging. | The source's request-logging middleware and `logging.basicConfig` are dropped: uvicorn's access log already logs method, path and status. |
+| D32 | Small screens. | Below MUI's `md` breakpoint the NavBar becomes a temporary drawer opened from a top bar (UI-4), and every table scrolls horizontally inside its own container (UI-3). Each screen is checked at 375 px. This takes in the source's optional small-screen NavBar (F12). |
 
 ## 12. Deferred
 
@@ -424,7 +425,6 @@ Optional in the source, not on the roadmap:
 - A warning when leaving the wizard with unsaved changes (F7).
 - The rate percentages (`deliveryRate`, `openRate`, `clickRate`, `bounceRate`) on the email
   stats cards (F8).
-- The NavBar collapsed by default on small screens (F12).
 
 W-11 and W-21 stay "do not port": that dead code is not deferred, it is dropped.
 
@@ -462,4 +462,4 @@ carries its share of their tests, accessibility and cleanup.
 | F9 SMTP settings | UI-8 | |
 | F10 Tests and CI | UI-2 and every UI item | UI-2 the tooling and helpers; the CI workflow is dropped (D21). The source's thresholds (80 % of lines, 100 % of the campaign send's critical paths) are dropped: `web/` has no coverage tooling; UI-10 tests the send paths instead. |
 | F11 [OPT] Excel/CSV import | deferred | D7 |
-| F12 Cleanup and consistency | every UI item | Dead code is not ported (W-21), each item adds only live NavBar entries (W-20) and its own accessibility. `frontend/docs/` is dropped (D21). |
+| F12 Cleanup and consistency | every UI item, UI-3, UI-4 | Dead code is not ported (W-21), each item adds only live NavBar entries (W-20) and its own accessibility. Small screens (D32): UI-3 the scrolling tables and stacked headers, UI-4 the small-screen NavBar. `frontend/docs/` is dropped (D21). |

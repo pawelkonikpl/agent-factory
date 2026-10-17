@@ -19,12 +19,18 @@ Rules for every item:
 - Each screen item adds its route and its NavBar entry; nothing links to a screen that doesn't
   exist yet (W-20).
 - Every async view has loading, error and empty states. Icon buttons have an `aria-label`,
-  dialogs take and return focus, contrast passes WCAG AA in both themes (F12).
+  dialogs take and return focus, contrast passes WCAG AA in both themes (F12). Every
+  `LinearProgress` has an accessible name. A tooltip on a button that can be disabled wraps the
+  button in a `<span>`, since MUI shows no tooltip on a disabled button.
+- Small screens (F12, D32): every table sits in UI-3's `ScrollableTable`, so it scrolls
+  horizontally instead of squeezing the page; headers stack on `xs` (`PageHeader`).
+- Counts in copy use UI-5's `pluralPl` with the three Polish forms.
 - Tests come with the code (Vitest and Testing Library from UI-2 on, `fetch` stubbed). The item
   ends with `bun run build` and, from UI-2 on, `bun run test` green in `web/`, and the API's and
   BFF's validation untouched.
 - Look at each screen in a browser with the stubbed requests from `AGENTS.md` (extended with
-  the item's endpoints) in both themes.
+  the item's endpoints) in both themes, at desktop width and at 375 px, with its dialogs, forms
+  and wizard steps.
 
 ---
 
@@ -197,12 +203,18 @@ components the screens use.
     same pattern.
   - Typography, Inter: h1 `2.5rem`/800, h2 `2rem`/700, h3 `1.5rem`/700, h4 `1.25rem`/600, then
     h5 `1.125rem`/600 and h6 `1rem`/600 (the source stops at h4).
+  - [FIX] Text on a gradient. White on the source's primary gradient fails WCAG AA (4.47:1 on
+    `#6366f1`, 4.23:1 on `#8b5cf6`). Where white text sits on a gradient (`GradientButton`, the
+    active NavBar entry), use the text gradient `linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%)`
+    (the light `primary.dark` and `secondary.dark`; 6.29:1 and 5.70:1) in both modes. The
+    source's gradients stay for decoration: the logo square, gradient text, backgrounds.
 - `src/theme/theme.ts`: `createAppTheme(mode)` with `cssVariables: true`,
-  `shape.borderRadius = 12`, the palette and typography above, and overrides for CssBaseline,
-  Button, IconButton, Paper, Card (with CardHeader and CardContent), TextField, OutlinedInput,
-  InputLabel, Chip, Dialog (with Title, Content and Actions), TableHead, TableRow, TableCell,
-  TablePagination, Tooltip, Alert, Snackbar, Drawer, ListItemButton, Avatar, Skeleton,
-  LinearProgress, CircularProgress, Tabs, Tab and Badge, all from the tokens.
+  `shape.borderRadius = 12`, `palette.contrastThreshold: 4.5` (so MUI picks black or white text
+  that passes AA on each palette colour), the palette and typography above, and overrides for
+  CssBaseline, Button, IconButton, Paper, Card (with CardHeader and CardContent), TextField,
+  OutlinedInput, InputLabel, Chip, Dialog (with Title, Content and Actions), TableHead,
+  TableRow, TableCell, TablePagination, Tooltip, Alert, Snackbar, Drawer, ListItemButton, Avatar,
+  Skeleton, LinearProgress, CircularProgress, Tabs, Tab and Badge, all from the tokens.
 - `src/theme/theme-mode-context.tsx`: `ThemeModeProvider` with `{ mode, toggleTheme, isDark }`,
   **dark by default**, stored in `localStorage["themeMode"]` (`light` or `dark`); it wraps the
   MUI `ThemeProvider` and `CssBaseline`. `useThemeMode()` throws outside the provider.
@@ -228,7 +240,9 @@ components the screens use.
   - `SearchInput({ value, onChange(value), placeholder = "Szukaj...", fullWidth? })` with a
     clear button (`aria-label` "Wyczyść" *(new copy)*);
   - `LoadingState`, `ErrorState({ error, title? })` (an `Alert severity="error"` with an
-    `AlertTitle`).
+    `AlertTitle`);
+  - `ScrollableTable({ children })`: a `TableContainer` with `overflow-x: auto` that every
+    screen's table sits in, so wide tables scroll horizontally on small screens (F12, D32).
 - The source's generic `DataTable` is dropped: each screen's table is its own component, so it
   would be unused.
 - `renderWithProviders` (UI-2) adds `ThemeModeProvider` and takes a `mode`.
@@ -254,11 +268,15 @@ UI-2.
    clear button empties it.
 2. Tests: the default mode is dark; `toggleTheme` switches and stores `themeMode`; a stored
    `light` is restored; `useThemeMode()` outside the provider throws.
-3. A test checks with MUI's `getContrastRatio` that `text.primary` on `background.default` and
-   `background.paper` is at least 4.5 in both modes.
-4. In a browser, the login screen and the notes page use the dark theme with Inter, and the
+3. A test checks with MUI's `getContrastRatio`, in both modes, that these reach at least 4.5:
+   `text.primary` and `text.secondary` on `background.default` and `background.paper`; white on
+   both stops of the text gradient; each palette colour's `contrastText` on its `main` (the
+   status chips).
+4. A test renders a wide table in `ScrollableTable` and finds its container scrolls horizontally
+   (`overflow-x: auto`).
+5. In a browser, the login screen and the notes page use the dark theme with Inter, and the
    network panel shows no font request to another origin.
-5. `bun run build` and `bun run test` pass.
+6. `bun run build` and `bun run test` pass.
 
 ---
 
@@ -297,15 +315,21 @@ session gate.
     "Klienci" (`/clients`, `People`), "Kategorie" (`/categories`, `Category`) and "Kampanie"
     (`/campaigns`, `Campaign`) to "Menu", and "Ustawienia" (`/settings`) to "Inne", in that
     order;
-  - the active entry follows the location: gradient background, white text and the glow; an
+  - entries are links (`component={NavLink}`) with `aria-current="page"` on the active one;
+  - the active entry follows the location: the text gradient (UI-3), white text and the glow; an
     inactive entry moves `translateX(4px)` on hover; collapsed entries show their label as a
     tooltip;
   - [FIX W-20, D9] no "Pomoc" (`/help`) and no "Import klientów";
   - the user section at the bottom: an avatar with the initial of `user.name` (falling back to
-    `email`, then `sub`), the name and the email from `GET /bff/session`. Clicking opens a menu
+    `email`, then `sub`), the name and the email from `GET /bff/session`. It is a button with
+    the `aria-label` "Menu użytkownika" *(new copy)*. Clicking opens a menu
     with "Wyloguj", which runs the existing logout mutation; a failed logout shows the existing
     "Nie udało się wylogować. Spróbuj ponownie." (UI-8 adds "Ustawienia"; "Profil" stays hidden,
     D12.)
+- Small screens (D32): below MUI's `md` breakpoint a top `AppBar` shows a menu button
+  (`aria-label` "Otwórz menu" *(new copy)*) and "Email Sender". The NavBar becomes a temporary
+  `Drawer`, 280 px wide and expanded, that closes when an entry is chosen, on Escape or on a
+  click outside; the collapse button is hidden there. The page then uses the full width.
 - `header-bar.tsx` is removed: its user display and logout move into the NavBar, with its
   tests.
 - `ErrorBoundary` (react-error-boundary): the fallback is an `Alert severity="error"` with
@@ -314,7 +338,8 @@ session gate.
 - `index.html`: `<title>Email Sender</title>` (`lang="pl"` stays); the login screen's heading
   becomes "Email Sender" (its explanation of the BFF stays).
 - `styles.css` drops the `body` padding and the `#root` width and grid, which would squeeze the
-  layout; the notes and login classes stay.
+  layout; the notes and login classes stay. The notes route sits in `PageContainer`, and the
+  login screen keeps a centred card at most 640 px wide, so neither stretches edge to edge.
 - `AGENTS.md` "Layout", `web/`: the static host also falls back to `index.html` for the SPA's
   routes.
 
@@ -341,7 +366,11 @@ UI-3.
 4. A component that throws shows the ErrorBoundary fallback.
 5. In a browser with the stubbed session, the shell, the notes page and the collapse work in
    both themes, and the page title is "Email Sender".
-6. `bun run build` and `bun run test` pass.
+6. At 375 px: the top bar shows, the menu button opens and closes the drawer, choosing an entry
+   closes it, and the login screen and the notes page fit the width with no sideways scrolling.
+   A test renders the small-screen layout (a mocked `md` media query) and checks the same.
+7. NavBar entries are links, and the active one has `aria-current="page"`.
+8. `bun run build` and `bun run test` pass.
 
 ---
 
@@ -386,6 +415,12 @@ query defaults and `useDebounce`.
 - The session, notes and logout queries and mutations set `meta.skipGlobalError`: their
   screens already show their own errors.
 - `src/hooks/use-debounce.ts`: `useDebounce<T>(value, delay = 500)`.
+- `src/utils/plural.ts`: `pluralPl(n, one, few, many)`: `one` for 1; `few` when `n % 10` is 2 to
+  4 and `n % 100` is not 12 to 14; `many` otherwise (0, 5 to 21, 25, …). Every count in copy
+  uses it.
+- Session expiry: when a 401 from a query or mutation brings the login screen back, it shows
+  "Sesja wygasła. Zaloguj się ponownie." *(new copy)* above the sign-in button. A first visit
+  without a session (`authenticated: false`, no 401) shows no such message.
 
 ### Pitfalls
 
@@ -409,7 +444,10 @@ UI-4.
    brings back the login screen; a query with `meta.skipGlobalError` shows none.
 4. `useDebounce` with fake timers returns the new value only after 500 ms.
 5. A failing query is retried once, a 401 never.
-6. `bun run build` and `bun run test` pass.
+6. `pluralPl` tests for 0, 1, 2, 5, 12, 22 and 25.
+7. After a 401 the login screen shows the session-expired message; on a fresh signed-out visit it
+   doesn't.
+8. `bun run build` and `bun run test` pass.
 
 ---
 
@@ -483,8 +521,8 @@ and delete.
 - Route `/clients`; `/` now redirects there. NavBar entry "Klienci" (`People`) first under
   "Menu".
 - Header: `PageHeader` "Klienci", subtitle "Zarządzaj bazą klientów ({count} klient/klientów)"
-  ("klient" for 1, else "klientów"; `count` is the list's `total`), action `GradientButton`
-  "Dodaj klienta"; the list below in a `ModernCard`.
+  (`pluralPl(count, "klient", "klientów", "klientów")`; `count` is the list's `total`), action
+  `GradientButton` "Dodaj klienta"; the list below in a `ModernCard`.
 - The list: `SearchInput` with the placeholder "Szukaj po nazwie, emailu, telefonie, firmie lub kategoriach…", debounced 500 ms. Loading: `TableSkeleton rows=5 columns=6`. No clients:
   `EmptyState` "Brak klientów" / "Nie masz jeszcze żadnych klientów. Dodaj pierwszego klienta, aby zacząć." with the action "Dodaj klienta". No search results: "Brak wyników" / "Nie znaleziono klientów pasujących do frazy „{query}”". Error: `ErrorState`.
 - Table: **"Klient"** (an avatar with the initial and the company name) · **"Email"** ·
@@ -621,16 +659,18 @@ and delete.
   `useCampaign(id)` (key `["campaigns", id]`), and the delete and clone mutations, which
   invalidate `["campaigns"]`.
 - Route `/campaigns`; NavBar entry "Kampanie" (`Campaign`) after "Kategorie".
-- Header: `PageHeader` "Kampanie", subtitle "Zarządzaj kampaniami email ({count} kampania/kampanii)" ("kampania" for 1, else "kampanii"). (UI-11 adds the action "Nowa kampania".)
+- Header: `PageHeader` "Kampanie", subtitle "Zarządzaj kampaniami email ({count} kampania/kampanii)" (`pluralPl(count, "kampania", "kampanie", "kampanii")`; the source has no "kampanie" form, so "3 kampanii" was wrong). (UI-11 adds the action "Nowa kampania".)
 - Search (debounced 500 ms; on the server: name, subject, content) and pagination as in UI-7.
-- Table: **"Nazwa"** · **"Temat"** · **"Odbiorcy"** ("{n} odbiorca/odbiorców": "odbiorca" for 1,
-  else "odbiorców") · **"Data utworzenia"** (`format(date, "P", { locale: pl })`) ·
+- Table: **"Nazwa"** · **"Temat"** · **"Odbiorcy"** ("{n} odbiorca/odbiorców":
+  `pluralPl(n, "odbiorca", "odbiorców", "odbiorców")`) · **"Data utworzenia"** (`format(date, "P", { locale: pl })`) ·
   **"Status"** (chips: `sent` "Wysłana" green, `failed` "Błąd" red, `scheduled` "Zaplanowana"
   primary, `draft` "Szkic" grey, `sending` "W trakcie" *(new copy)* info) · **"Statystyki"**
-  (chips "Wysłane: {n}", "Błędy: {n}" when above 0, "Oczekujące: {n}" when above 0, "Odbite: {n}" when above 0, and a `LinearProgress` of `stats.successRate`) · **"Akcje"**.
-- Actions in this item: "Klonuj kampanię" on every row except `sending`; "Usuń" on every row
-  except `sending` (the API refuses it). (UI-10 adds "Wyślij kampanię" and "Wyślij ponownie",
-  UI-12 "Edytuj", UI-13 the link on the name.)
+  (chips "Wysłane: {n}", "Błędy: {n}" when above 0, "Oczekujące: {n}" when above 0, "Odbite: {n}" when above 0, and one `LinearProgress` of `stats.successRate` with the `aria-label` "Odsetek wysłanych" *(new copy)*; UI-10 shows the send progress in the same bar while `sending`) · **"Akcje"**.
+- Actions in this item: "Klonuj kampanię" on every row [PARITY] (cloning only reads the
+  campaign, so `sending` rows can be cloned too); "Usuń" on every row except `sending`. [FIX] The
+  old UI hid "Usuń" on `sent` rows, but its own note says deleting follows the backend, which
+  allows every status; the API refuses only `sending` (D17). (UI-10 adds "Wyślij kampanię" and
+  "Wyślij ponownie", UI-12 "Edytuj", UI-13 the link on the name.)
 - Clone: a snackbar "Kampania „{campaignName}” została sklonowana". Result snackbars here and
   in UI-10 sit at the bottom, last 4 s and use `variant="filled"`.
 - Delete: `DeleteConfirmDialog` "Potwierdź usunięcie" / "Czy na pewno chcesz usunąć kampanię **{campaignName}**? Tej operacji nie można cofnąć." *(new copy, after the clients dialog)*.
@@ -656,7 +696,7 @@ UI-6, UI-7, API-9.
    status; clone sends the right payload and shows the snackbar; delete with the dialog;
    debounced search and pagination; the error state's retry.
 2. In a browser with a stubbed `/api/campaigns/` list covering all five statuses: the screen
-   works in both themes.
+   works in both themes, and at 375 px the table scrolls sideways inside its card.
 3. `bun run build` and `bun run test` pass.
 
 ---
@@ -679,15 +719,20 @@ Send and resend a campaign from the list, and watch it while the API sends in th
   shows the result).
 - Row actions: `draft` → "Wyślij kampanię"; `failed` → "Wyślij ponownie" (to every failed
   recipient). Both are disabled while the campaign is `sending` or its request is running
-  (tooltip "Wysyłanie…").
+  (tooltip "Wysyłanie…", on a `<span>` around the button).
 - Send: with no recipients, the snackbar "Nie można wysłać kampanii bez odbiorców"; otherwise
-  `SendConfirmDialog`: title "Potwierdź wysyłkę kampanii", "Czy na pewno chcesz wysłać kampanię **{campaignName}**?", a box "Szczegóły:" with "• Temat: {subject}" and "• Liczba odbiorców: {n}" and the chip "{n} email/emaili zostanie wysłany", buttons "Anuluj" and "Wyślij teraz"
+  `SendConfirmDialog`: title "Potwierdź wysyłkę kampanii", "Czy na pewno chcesz wysłać kampanię **{campaignName}**?", a box "Szczegóły:" with "• Temat: {subject}" and "• Liczba odbiorców: {n}" and the chip "{n} email/emaili zostanie wysłany" (`pluralPl(n, "{n} email zostanie wysłany", "{n} emaile zostaną wysłane", "{n} emaili zostanie wysłanych")`; the last two forms are *(new copy)*), buttons "Anuluj" and "Wyślij teraz"
   ("Wysyłanie…"; both disabled during the request).
-- After the `202`: the row shows the chip "W trakcie" and a determinate `LinearProgress` of
-  `stats.progressPercentage`. Each `sending` row polls `GET /api/campaigns/{id}` with
-  TanStack Query's `refetchInterval` (2000 ms while `status === "sending"`, else `false`).
-  When polling sees the final status, the page invalidates `["campaigns"]`, `["emails"]` and
-  `["emailStats"]`.
+- After the `202`: the row shows the chip "W trakcie", and the stats column's one bar becomes a
+  determinate `LinearProgress` of `stats.progressPercentage` with the `aria-label` "Postęp wysyłki" *(new copy)* (instead of UI-9's `successRate`). Each `sending` row polls
+  `GET /api/campaigns/{id}` with TanStack Query's `refetchInterval` (2000 ms while
+  `status === "sending"`, else `false`). When polling sees the final status, the page
+  invalidates `["campaigns"]`, `["emails"]` and `["emailStats"]`.
+- Failed polls: the poll query sets `meta.skipGlobalError` and `retry: false` and keeps the last
+  campaign it got. After 3 failed polls in a row, the row hides its bar and shows the warning
+  "Nie można odświeżyć postępu. Odśwież stronę." *(new copy)*. Polling goes on every 2 s, and
+  the first successful poll removes the warning and brings the bar back. No error snackbar
+  repeats every 2 s.
 - Result snackbars (bottom, 4 s, filled) for sends and resends started on this page, when
   polling sees the final status, with `successCount = stats.sent` and `failedCount =
   stats.failed`:
@@ -700,6 +745,8 @@ Send and resend a campaign from the list, and watch it while the API sends in th
 - An HTTP error when starting shows its `detail`, except that a `detail` containing
   `current status: sent` shows the success "Kampania została już pomyślnie wysłana"; without a
   `detail`: "Błąd podczas wysyłania kampanii" / "Błąd podczas ponownego wysyłania kampanii".
+  When the `detail` starts with "SMTP configuration not found", the snackbar also has the action
+  "Przejdź do ustawień" *(new copy)*, which opens `/settings`.
 
 ### Pitfalls
 
@@ -722,10 +769,13 @@ UI-9, API-11, API-12.
    right texts.
 2. Tests: the no-recipients snackbar; the dialog's texts and disabled buttons; the `current
    status: sent` case; the buttons are disabled while `sending`; `["emails"]` and
-   `["emailStats"]` are invalidated at the end.
-3. End to end with `make docker-up`, the API and the BFF, smtp4dev configured: sending a seeded
+   `["emailStats"]` are invalidated at the end; a `sending` row shows one bar, of
+   `progressPercentage`; the "Przejdź do ustawień" action opens `/settings`.
+3. Tests with fake timers and a poll that fails 3 times, then succeeds: no error snackbar, the
+   warning shows after the third failure, and it goes away with the bar back after the success.
+4. End to end with `make docker-up`, the API and the BFF, smtp4dev configured: sending a seeded
    campaign shows "W trakcie", then "Wysłana", and the mail arrives in smtp4dev.
-4. `bun run build` and `bun run test` pass.
+5. `bun run build` and `bun run test` pass.
 
 ---
 
@@ -750,7 +800,7 @@ Create a campaign in four steps, with a sanitized preview.
 - One react-hook-form form: `name, subject, content, recipientIds, scheduledFor`. Steps:
   1. **"Podstawowe informacje"** (description "Nazwij kampanię i ustaw temat" *(new copy)*):
      "Nazwa kampanii" (required: "Nazwa kampanii jest wymagana"; helper "Nazwa widoczna tylko dla Ciebie, nie dla odbiorców"), "Temat wiadomości email" (required: "Temat email jest wymagany"; helper "To zobaczą odbiorcy w skrzynce odbiorczej"), "Data wysyłki"
-     (`datetime-local`, optional; helper "Pozostaw puste aby zapisać jako szkic do późniejszej wysyłki"). Valid when `name && subject`.
+     (`datetime-local`, optional; helper "Data jest tylko zapisywana — kampania nie zostanie wysłana automatycznie." *(new copy)*). Valid when `name && subject`. [FIX, D6] The new helper replaces the source's "Pozostaw puste aby zapisać jako szkic do późniejszej wysyłki", which suggests that a date schedules the send; nothing sends at that date.
   2. **"Treść wiadomości"** (description "Napisz treść wiadomości" *(new copy)*): an alert with
      the variables `{name}`, `{email}`, `{company}` (monospace chips) and "Użyj tych zmiennych aby spersonalizować wiadomość dla każdego odbiorcy" (the API substitutes them, D3); the
      content field (required: "Treść email jest wymagana"; placeholder "Cześć {name}, …");
@@ -762,9 +812,11 @@ Create a campaign in four steps, with a sanitized preview.
      and "Wybierz co najmniej jednego odbiorcę" at zero. Valid with at least one recipient.
   4. **"Przejrzyj i zatwierdź"** (description "Sprawdź wszystko przed zapisaniem" *(new
      copy)*): the heading "Sprawdź i zatwierdź" / "Przejrzyj wszystkie szczegóły przed utworzeniem kampanii"; the fields "Nazwa kampanii", "Temat wiadomości", "Status wysyłki"
-     (chip "Zaplanowana" when a date is set, else "Zapisz jako szkic"), the content preview,
-     "{n} odbiorca/odbiorców", "Wiadomość zostanie wysłana do {n} osoby/osób" ("osoby" for 1,
-     else "osób") and the recipient list.
+     (always the chip "Zapisz jako szkic"; with a date, the plain text "Zapisana data wysyłki: {date}" *(new copy)* next to it), the content preview, "{n} odbiorca/odbiorców",
+     "Wiadomość zostanie wysłana do {n} osoby/osób" (`pluralPl(n, "osoby", "osób", "osób")`) and
+     the recipient list. [FIX, D6] The source showed the chip "Zaplanowana" when a date was set;
+     the campaign is saved as a draft either way, so that chip would promise a send that never
+     happens.
 - Recipient selection [FIX]: the state is one set of `selectedClientIds`. Toggling a category
   adds or removes its active clients; a category shows as checked when all its active clients
   are selected. The result is the union of category and individual choices [PARITY]. Category
@@ -774,16 +826,17 @@ Create a campaign in four steps, with a sanitized preview.
   chip "Nieaktywny" and are not added by category toggles.
 - [FIX W-03] Both previews render the content sanitized with DOMPurify.
 - Submit: `createCampaign({ name, subject, content, recipientIds, scheduledFor })` with
-  `scheduledFor` as an ISO string or left out; on success invalidate `["campaigns"]` and go to
-  `/campaigns`. "Anuluj" goes back to `/campaigns`.
+  `scheduledFor` as an ISO string or left out; on success invalidate `["campaigns"]`, go to
+  `/campaigns` and show the snackbar "Kampania została utworzona" *(new copy)*. "Anuluj" goes
+  back to `/campaigns`.
 
 ### Pitfalls
 
 - W-03: never `dangerouslySetInnerHTML` without DOMPurify; `<script>` and `on*` attributes must
   not reach the DOM.
 - `datetime-local` has no timezone: convert with `new Date(value).toISOString()`.
-- `scheduledFor` is stored only; nothing will send at that time (D6). The chip says "Zaplanowana"
-  as the old app did.
+- `scheduledFor` is stored only; nothing will send at that time (D6). The copy must not promise
+  a scheduled send: no "Zaplanowana" chip in the wizard.
 - Keep each step under about 250 lines; the old wizard was the largest component.
 - Keyboard: the stepper buttons, tabs and checkboxes work without a mouse (F12).
 
@@ -825,8 +878,8 @@ Edit a `draft` campaign with the same wizard.
 - The form starts from the campaign: `recipientIds` from `recipients[].clientId`,
   `scheduledFor` converted to a local `datetime-local` value.
 - Submit: `updateCampaign(id, payload)` (`PUT /api/campaigns/{id}`); a cleared date sends
-  `"scheduledFor": null` (the API clears it); then invalidate `["campaigns"]` and go to
-  `/campaigns`. A 400 ("Only draft campaigns can be modified", "Campaign is being sent") shows
+  `"scheduledFor": null` (the API clears it); then invalidate `["campaigns"]`, go to
+  `/campaigns` and show the snackbar "Kampania została zapisana" *(new copy)*. A 400 ("Only draft campaigns can be modified", "Campaign is being sent") shows
   through the global snackbar.
 
 ### Pitfalls
@@ -843,7 +896,7 @@ UI-11.
 ### Acceptance criteria
 
 1. Tests: the form starts from the campaign's data; the payload; clearing the date sends `null`;
-   the not-found and non-draft alerts; "Edytuj" shows only for drafts.
+   the not-found and non-draft alerts; "Edytuj" shows only for drafts; the success snackbar.
 2. In a browser with stubbed calls, editing a draft works in both themes.
 3. `bun run build` and `bun run test` pass.
 
@@ -865,14 +918,19 @@ A campaign's email log: its stats, a paginated list, and resending one failed em
   browser, W-09), `resendEmail(id)`.
 - `src/hooks/use-emails.ts`: `useEmails(params)` (key `["emails", params]`),
   `useEmailStats(campaignId)` (key `["emailStats", campaignId]`), `useResendEmail()`, which
-  invalidates `["emails"]` and `["emailStats"]`.
+  invalidates `["emails"]` and `["emailStats"]`. Both queries use `staleTime: 0`, so opening the
+  log always shows the current rows, even after a send that finished while the list wasn't
+  polling.
 - Route `/emails?campaignId={id}`; without the parameter it redirects to `/campaigns`. [FIX] The
   only entry is the campaign list: the name of a `sent` **or `failed`** campaign links here
   (D26). No NavBar entry; on this route "Kampanie" is active. No global log (its old code was
   unreachable and is not ported).
-- `EmailsHeader`: a back button (tooltip "Wróć do kampanii", `navigate(-1)`), the title
-  "Historia Emaili", the subtitle "Przeglądaj historię wysłanych emaili ({n} email/emaile/emaili)" ("email" for 1, "emaile" for 2 to 4, "emaili" for 0 and 5 or more; the
-  old code wrongly gave "emaile" for 0).
+- `EmailsHeader`: a back button (tooltip "Wróć do kampanii"; `navigate(-1)` when the app has
+  history, else `/campaigns`, so a reload or a pasted link never leaves the app), breadcrumbs
+  "Kampanie" › {campaignName} (from `useCampaign`), the title "Historia Emaili", the subtitle
+  "Przeglądaj historię wysłanych emaili ({n} email/emaile/emaili)"
+  (`pluralPl(n, "email", "emaile", "emaili")`; the old code wrongly gave "emaile" for 0, and the
+  source's rule "2 to 4" missed 22 to 24).
 - `EmailStatsCards`: `StatsCard`s for **"Łącznie" · "Wysłane" · "Błędy" · "Oczekujące" ·
   "Odrzucone"** (= `bounced`), with loading and error states. [D8] "Otwarte" and "Kliknięcia"
   are hidden.
@@ -905,7 +963,8 @@ UI-9, API-10, API-13.
 1. Tests: every status's label and colour; "Wyślij ponownie" only for `failed`; the resend
    dialog calls `POST /api/emails/{id}/resend` and refreshes; the `campaignId` reaches the API
    as `campaign_id`; no parameter redirects to `/campaigns`; the subtitle's three plural forms;
-   the empty and no-results states; "Otwarte" and "Kliknięcia" are absent.
+   the empty and no-results states; "Otwarte" and "Kliknięcia" are absent; the back button goes
+   to `/campaigns` when the log is the first page; the breadcrumbs name the campaign.
 2. The names of `sent` and `failed` campaigns link to the log; "Kampanie" is active there.
 3. End to end with smtp4dev: after a partial failure, the log shows the failed email, and
    resending it after fixing the settings turns it into "Wysłany".
