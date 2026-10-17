@@ -35,9 +35,7 @@ def _active(campaign: Campaign) -> list[CampaignRecipient]:
 def _add(campaign: Campaign, clients: list[Client]) -> None:
     # The client object, not only its ID: the response reads it without a lazy load.
     for client in clients:
-        campaign.recipients.append(
-            CampaignRecipient(client=client, status=RecipientStatus.PENDING)
-        )
+        campaign.recipients.append(CampaignRecipient(client=client, status=RecipientStatus.PENDING))
 
 
 class CampaignRepository:
