@@ -8,7 +8,7 @@ from fastapi import Depends, Query
 from pydantic import Field
 
 from app.models.email import EmailStatus
-from app.schemas.base import BaseSchema
+from app.schemas.base import BaseSchema, DbDatetime, DbInt, DbText
 
 
 class EmailSchema(BaseSchema):
@@ -40,16 +40,16 @@ class EmailUpdateSchema(BaseSchema):
     """A partial update: null or omitted keeps a field. The service checks the status."""
 
     status: str | None = None
-    sent_at: datetime | None = None
-    delivered_at: datetime | None = None
-    opened_at: datetime | None = None
-    clicked_at: datetime | None = None
-    bounced_at: datetime | None = None
-    error_message: str | None = None
+    sent_at: DbDatetime | None = None
+    delivered_at: DbDatetime | None = None
+    opened_at: DbDatetime | None = None
+    clicked_at: DbDatetime | None = None
+    bounced_at: DbDatetime | None = None
+    error_message: DbText | None = None
     # The column lengths: a longer value answers 422, not a database error.
-    error_code: str | None = Field(default=None, max_length=50)
-    smtp_message_id: str | None = Field(default=None, max_length=255)
-    smtp_response: str | None = None
+    error_code: DbText | None = Field(default=None, max_length=50)
+    smtp_message_id: DbText | None = Field(default=None, max_length=255)
+    smtp_response: DbText | None = None
 
 
 class EmailStatsSchema(BaseSchema):
@@ -78,14 +78,14 @@ class EmailFilters:
     Plain None defaults, so the repository can build one for its own lists.
     """
 
-    campaign_id: Annotated[int | None, Query()] = None
-    client_id: Annotated[int | None, Query()] = None
+    campaign_id: Annotated[DbInt | None, Query()] = None
+    client_id: Annotated[DbInt | None, Query()] = None
     status: Annotated[EmailStatus | None, Query()] = None
     # Both bounds inclusive, on createdAt.
-    from_date: Annotated[datetime | None, Query()] = None
-    to_date: Annotated[datetime | None, Query()] = None
+    from_date: Annotated[DbDatetime | None, Query()] = None
+    to_date: Annotated[DbDatetime | None, Query()] = None
     has_error: Annotated[bool | None, Query()] = None
-    search: Annotated[str | None, Query()] = None
+    search: Annotated[DbText | None, Query()] = None
 
 
 EmailFiltersDep = Annotated[EmailFilters, Depends()]
