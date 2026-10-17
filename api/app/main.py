@@ -20,11 +20,36 @@ from app.config import Settings
 from app.database import create_engine, create_session_factory, run_migrations
 from app.dependencies import Container, build_campaign_sender, build_container
 from app.errors import DomainError, InvalidTokenError, KeySetUnavailableError, NotFoundError
+from app.services.seed import seed_clients_and_campaigns
 from app.services.smtp_sender import EmailSenderFactory, SmtpEmailSender
 
 logger = logging.getLogger(__name__)
 
 REALM = "demo-api"
+
+
+async def seed_demo_data(container: Container) -> None:
+    """Seed the demo data; a failure is rolled back and logged, and startup goes on."""
+    try:
+        async with container.sessions() as session:
+            try:
+                result = await seed_clients_and_campaigns(session)
+            except Exception:
+                await session.rollback()
+                raise
+    except Exception:
+        logger.exception("Seeding demo data failed")
+        return
+    # The counts only (W-27).
+    logger.info(
+        "Demo data seed: %d clients created, %d skipped; %d campaigns created, %d skipped; "
+        "%d recipients created",
+        result.clients_created,
+        result.clients_skipped,
+        result.campaigns_created,
+        result.campaigns_skipped,
+        result.recipients_created,
+    )
 
 
 def create_app(
@@ -58,6 +83,8 @@ def create_app(
         except Exception:
             logger.exception("Recovering interrupted campaign sends failed")
             raise
+        if settings.seed_demo_data:
+            await seed_demo_data(container)
         yield
         if http_client is None:
             await http.aclose()
