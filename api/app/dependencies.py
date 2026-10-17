@@ -12,10 +12,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.clock import Clock
 from app.config import Settings
 from app.errors import InvalidTokenError
+from app.repositories.campaign_repository import CampaignRepository
 from app.repositories.category_repository import CategoryRepository
 from app.repositories.client_repository import ClientRepository
 from app.repositories.config_repository import ConfigRepository
 from app.repositories.note_repository import NoteRepository
+from app.services.campaign_service import CampaignService
 from app.services.category_service import CategoryService
 from app.services.client_service import ClientService
 from app.services.encryption import EncryptionService
@@ -95,6 +97,13 @@ def get_client_service(session: SessionDep) -> ClientService:
 
 
 ClientServiceDep = Annotated[ClientService, Depends(get_client_service)]
+
+
+def get_campaign_service(session: SessionDep) -> CampaignService:
+    return CampaignService(CampaignRepository(session))
+
+
+CampaignServiceDep = Annotated[CampaignService, Depends(get_campaign_service)]
 
 
 def get_smtp_config_service(session: SessionDep, container: ContainerDep) -> SmtpConfigService:
