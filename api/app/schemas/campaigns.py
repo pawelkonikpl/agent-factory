@@ -61,6 +61,12 @@ class CampaignUpdateSchema(BaseSchema):
     scheduled_for: datetime | None = None
 
 
+class CampaignResendSchema(BaseSchema):
+    """CampaignRecipient IDs, not client IDs; null or omitted means every failed recipient."""
+
+    recipient_ids: list[int] | None = None
+
+
 class CampaignRecipientSchema(BaseSchema):
     id: int
     client_id: int

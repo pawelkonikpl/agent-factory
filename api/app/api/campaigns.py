@@ -9,7 +9,12 @@ from app.dependencies import (
     PrincipalDep,
 )
 from app.schemas.base import Page, PageParamsDep
-from app.schemas.campaigns import CampaignCreateSchema, CampaignSchema, CampaignUpdateSchema
+from app.schemas.campaigns import (
+    CampaignCreateSchema,
+    CampaignResendSchema,
+    CampaignSchema,
+    CampaignUpdateSchema,
+)
 
 router = APIRouter(prefix="/campaigns", tags=["Campaigns"])
 
@@ -84,6 +89,28 @@ async def send_campaign(
 ) -> CampaignSchema:
     # The checks and the move to sending happen here; the sends run after the response.
     campaign, smtp_config = await sender.start(campaign_id, principal.subject)
+    if max_concurrent is None:
+        max_concurrent = default_max_concurrent
+    background_tasks.add_task(sender.run, campaign_id, smtp_config, max_concurrent)
+    return service.to_schema(campaign)
+
+
+@router.post(
+    "/{campaign_id}/resend", response_model=CampaignSchema, status_code=status.HTTP_202_ACCEPTED
+)
+async def resend_campaign(
+    campaign_id: int,
+    principal: PrincipalDep,
+    sender: CampaignSenderDep,
+    service: CampaignServiceDep,
+    default_max_concurrent: EmailMaxConcurrentDep,
+    background_tasks: BackgroundTasks,
+    max_concurrent: int | None = Query(None, ge=1, le=50),
+    payload: CampaignResendSchema | None = None,
+) -> CampaignSchema:
+    # No body, {} and a null recipientIds all mean every failed recipient.
+    retry_recipient_ids = None if payload is None else payload.recipient_ids
+    campaign, smtp_config = await sender.start(campaign_id, principal.subject, retry_recipient_ids)
     if max_concurrent is None:
         max_concurrent = default_max_concurrent
     background_tasks.add_task(sender.run, campaign_id, smtp_config, max_concurrent)
