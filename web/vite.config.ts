@@ -1,5 +1,5 @@
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 
 const BFF_URL = "http://localhost:8000";
 
@@ -19,5 +19,10 @@ export default defineConfig({
       "/bff": { target: BFF_URL },
       "/api": { target: BFF_URL },
     },
+  },
+  test: {
+    environment: "jsdom",
+    setupFiles: "./src/test/setup.ts",
+    css: true,
   },
 });
