@@ -179,6 +179,9 @@ isolation. No tables yet.
 - Don't build the test schema with `Base.metadata.create_all`: the migrations are the schema,
   and running them in tests tests them.
 - W-22, W-25: no naive datetimes; no `hash(nodeid)` tricks for unique test data.
+- From this item on, every `api/` test run needs PostgreSQL, the factory's own builders and
+  reviewers included: the dev container they run in must have been rebuilt after API-1 merged
+  (API-1 documents the rebuild), or this item's checks can't pass there.
 
 ### Depends on
 

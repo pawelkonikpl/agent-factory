@@ -3,7 +3,9 @@
 The two phases below go into `factory/backlog.md` after Phase 3, pasted as they are from the
 main checkout once job `008-email-sender-rebuild` has merged (job branches never touch the
 backlog). Each line is one small factory job that merges on its own and leaves every validation
-command green. The specs the lines point to are in this folder.
+command green. The specs the lines point to are in this folder. After the API-1 item merges,
+rebuild the dev container the factory runs in before the next item starts: from API-2 on, the
+API's tests need its PostgreSQL.
 
 ## Phase 4: Email Sender API
 

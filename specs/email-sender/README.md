@@ -36,7 +36,7 @@ API functions, zod schemas and hooks, instead of building one big layer up front
 
 When an item changes the contract, it updates `api-contract.md` in the same job.
 
-## 2. Product
+## 2. Product and scope
 
 **Email Sender** ("Marketing Platform"), bulk email campaigns for one operator or team:
 
@@ -70,6 +70,23 @@ Soft delete (`is_deleted`, `deleted_at`) on `clients`, `categories`, `campaigns`
 signed-in user (for example `alice` and `bob`) sees the same clients, categories, campaigns and
 log. Only the SMTP settings are per user (D5). A campaign goes out through the SMTP settings of
 the user who presses send.
+
+### Scope
+
+In scope: clients, categories, campaigns (CRUD, recipients, background send, resend, clone in
+the UI), the email log with its stats and single-email resend, per-user SMTP settings with a
+test email, the demo seed, PostgreSQL and smtp4dev in all three run modes, bun for `web/`, and
+tests.
+
+Out of scope:
+
+- Auth, which the BFF and Keycloak own (D12): registration, sign-in and sign-out, email
+  verification, password reset, `/auth/*` endpoints, the `User` model and password hashing, JWT
+  handling, the login rate limiter, the admin seed and the auth email templates, and the
+  source's auth screens.
+- The old version's dead code (W-11, W-21).
+- CI, image publishing and production deployment (D21; mission non-goals).
+- The source's optional work, listed in §12.
 
 ## 3. How it fits this repo
 
@@ -429,7 +446,7 @@ carries its share of their tests, accessibility and cleanup.
 | B8 Campaign send and resend | API-11, API-12 | Background sending replaces the synchronous send and `SendCampaignResultSchema` (D17). |
 | B9 Emails module | API-10, API-13 | API-13 is the single-email resend. |
 | B10 Demo seed | API-14 | The SMTP seed is dropped (D22). |
-| B11 Backend tests | API-2 and every API item | API-2 the fixtures (`conftest.py`); each item its own tests. |
+| B11 Backend tests | API-2 and every API item | API-2 the fixtures (`conftest.py`); each item its own tests. The source's "coverage of `app/` at least 85 %" is dropped: `api/` has no coverage tooling. |
 | B12 CI, Docker, compose, docs | API-1, API-8 | API-1 PostgreSQL and API-8 smtp4dev in the run modes; GitHub Actions, image push and `docs/` are dropped (D21). |
 | B13 [OPT] Scheduler | deferred | needs an SMTP owner for global campaigns |
 | B14 [OPT] Open and click tracking | deferred | D8 |
@@ -443,6 +460,6 @@ carries its share of their tests, accessibility and cleanup.
 | F7 Campaign wizard | UI-11, UI-12 | UI-12 the edit mode. |
 | F8 Email log | UI-13 | |
 | F9 SMTP settings | UI-8 | |
-| F10 Tests and CI | UI-2 and every UI item | UI-2 the tooling and helpers; the CI workflow is dropped (D21). |
+| F10 Tests and CI | UI-2 and every UI item | UI-2 the tooling and helpers; the CI workflow is dropped (D21). The source's thresholds (80 % of lines, 100 % of the campaign send's critical paths) are dropped: `web/` has no coverage tooling; UI-10 tests the send paths instead. |
 | F11 [OPT] Excel/CSV import | deferred | D7 |
 | F12 Cleanup and consistency | every UI item | Dead code is not ported (W-21), each item adds only live NavBar entries (W-20) and its own accessibility. `frontend/docs/` is dropped (D21). |
