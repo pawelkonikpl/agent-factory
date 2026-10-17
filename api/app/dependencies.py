@@ -13,8 +13,10 @@ from app.clock import Clock
 from app.config import Settings
 from app.errors import InvalidTokenError
 from app.repositories.category_repository import CategoryRepository
+from app.repositories.client_repository import ClientRepository
 from app.repositories.note_repository import NoteRepository
 from app.services.category_service import CategoryService
+from app.services.client_service import ClientService
 from app.services.note_service import NoteService
 from app.services.token_verifier import AccessTokenVerifier, Principal
 
@@ -77,3 +79,10 @@ def get_category_service(session: SessionDep) -> CategoryService:
 
 
 CategoryServiceDep = Annotated[CategoryService, Depends(get_category_service)]
+
+
+def get_client_service(session: SessionDep) -> ClientService:
+    return ClientService(ClientRepository(session))
+
+
+ClientServiceDep = Annotated[ClientService, Depends(get_client_service)]

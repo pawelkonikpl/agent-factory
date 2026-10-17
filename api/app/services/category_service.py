@@ -31,6 +31,7 @@ class CategoryService:
 
     async def delete(self, category_id: int) -> None:
         category = await self.get_by_id(category_id)
+        await self._categories.remove_client_associations(category.id)
         await self._categories.soft_delete(category)
 
     async def _check_name_free(self, name: str, exclude_id: int | None = None) -> None:

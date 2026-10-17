@@ -1,12 +1,13 @@
 """Categories in PostgreSQL. Every query skips soft-deleted rows unless asked otherwise."""
 
-from sqlalchemy import Select, false, select
+from sqlalchemy import Select, delete, false, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.errors import ConflictError
 from app.models.base import utc_now
 from app.models.category import Category
+from app.models.client import client_category
 
 
 def _not_deleted() -> Select[Category]:
@@ -45,6 +46,12 @@ class CategoryRepository:
         category.name = name
         await self._commit_name(name)
         return category
+
+    async def remove_client_associations(self, category_id: int) -> None:
+        # No commit: soft_delete's commit writes this in the same transaction.
+        await self._session.execute(
+            delete(client_category).where(client_category.c.category_id == category_id)
+        )
 
     async def soft_delete(self, category: Category) -> Category:
         category.is_deleted = True
