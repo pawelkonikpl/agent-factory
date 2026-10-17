@@ -2,7 +2,7 @@ from fastapi import APIRouter, status
 
 from app.dependencies import NoteServiceDep, PrincipalDep
 from app.repositories.note_repository import Note
-from app.schemas import NoteCreate, NoteResponse
+from app.schemas.notes import NoteCreate, NoteResponse
 
 router = APIRouter(prefix="/notes", tags=["notes"])
 
