@@ -1,14 +1,20 @@
+from collections.abc import AsyncIterator
 from typing import Any
 
 import httpx
 import pytest
+from fastapi import FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.config import Settings
+from app.main import create_app
 from app.repositories.campaign_repository import CampaignRepository
 from app.repositories.client_repository import ClientRepository
 from app.repositories.email_repository import EmailRepository
-from tests.conftest import BearerFactory
+from app.services.encryption import EncryptionService
+from app.services.smtp_sender import SendResult
+from tests.conftest import AUDIENCE, ISSUER, BearerFactory, FakeIssuer, FakeSenders
 
 EMAIL_KEYS = {
     "id",
@@ -52,6 +58,37 @@ STATS_KEYS = {
     "bounceRate",
 }
 
+SMTP_SETTINGS = {"smtpServer": "smtp.example.com", "smtpPort": 587, "smtpUseTls": True}
+NO_SMTP = {"detail": "SMTP configuration not found. Please configure SMTP settings first."}
+
+
+@pytest.fixture
+def senders() -> FakeSenders:
+    return FakeSenders()
+
+
+@pytest.fixture
+async def app(
+    issuer: FakeIssuer,
+    database_url: str,
+    session_factory: async_sessionmaker[AsyncSession],
+    senders: FakeSenders,
+) -> AsyncIterator[FastAPI]:
+    """The app with a fake sender, so a resend never reaches an SMTP server."""
+    settings = Settings(
+        issuer=ISSUER,
+        audience=AUDIENCE,
+        database_url=database_url,
+        encryption_key=EncryptionService.generate_key(),
+    )
+    async with httpx.AsyncClient(transport=issuer.transport()) as outbound:
+        yield create_app(
+            settings,
+            http_client=outbound,
+            session_factory=session_factory,
+            email_sender_factory=senders,
+        )
+
 
 async def post(client: httpx.AsyncClient, bearer: BearerFactory, path: str, body: Any) -> int:
     response = await client.post(path, json=body, headers=bearer())
@@ -75,8 +112,9 @@ async def add_email(
     campaign_id: int,
     client_id: int,
     status: str = "pending",
+    **columns: Any,
 ) -> int:
-    """An email created through the repository: nothing in the app writes emails yet."""
+    """An email created through the repository: nothing in the app creates emails yet."""
     async with session_factory() as session:
         campaign = await CampaignRepository(session).get_by_id(campaign_id)
         recipient = await ClientRepository(session).get_by_id(client_id)
@@ -88,9 +126,10 @@ async def add_email(
             subject="Nowości",
             body="Dzień dobry",
         )
+        assignments = ", ".join(f"{name} = :{name}" for name in ["status", *columns])
         await session.execute(
-            text("UPDATE emails SET status = :status WHERE id = :id"),
-            {"status": status, "id": email.id},
+            text(f"UPDATE emails SET {assignments} WHERE id = :id"),
+            {"status": status, **columns, "id": email.id},
         )
         await session.commit()
         return email.id
@@ -118,6 +157,7 @@ def ids(items: list[dict[str, Any]]) -> list[int]:
         pytest.param("PUT", "/emails/1", {"status": "sent"}, id="update"),
         pytest.param("POST", "/emails/1/mark-opened", None, id="mark-opened"),
         pytest.param("POST", "/emails/1/mark-clicked", None, id="mark-clicked"),
+        pytest.param("POST", "/emails/1/resend", None, id="resend"),
         pytest.param("DELETE", "/emails/1", None, id="delete"),
     ],
 )
@@ -338,6 +378,145 @@ async def test_unknown_email_answers_404(
     )
 
 
+async def test_resend_answers_200_with_the_sent_email(
+    client: httpx.AsyncClient,
+    bearer: BearerFactory,
+    session_factory: async_sessionmaker[AsyncSession],
+    senders: FakeSenders,
+) -> None:
+    await client.put("/config/smtp", json=SMTP_SETTINGS, headers=bearer())
+    acme = await add_client(client, bearer, "Acme")
+    autumn = await add_campaign(client, bearer, "Jesień")
+    email_id = await add_email(
+        session_factory, autumn, acme, "failed", error_message="SMTP error: earlier"
+    )
+
+    response = await client.post(f"/emails/{email_id}/resend", headers=bearer())
+
+    assert response.status_code == 200
+    email = response.json()
+    assert set(email) == EMAIL_KEYS
+    assert (email["status"], email["retryCount"]) == ("sent", 1)
+    assert email["sentAt"] is not None
+    assert (email["smtpMessageId"], email["errorMessage"]) == ("<1@test>", None)
+    assert await get(client, bearer, f"/emails/{email_id}") == email
+    assert [(c.smtp_server, c.smtp_port) for c in senders.configs] == [("smtp.example.com", 587)]
+
+
+@pytest.mark.parametrize(
+    "sent_at", [None, "2026-10-01T12:00:00Z"], ids=["never-sent", "sent-before"]
+)
+async def test_resend_answers_200_with_the_failed_email_on_an_smtp_error(
+    client: httpx.AsyncClient,
+    bearer: BearerFactory,
+    session_factory: async_sessionmaker[AsyncSession],
+    senders: FakeSenders,
+    sent_at: str | None,
+) -> None:
+    senders.result = SendResult(success=False, smtp_message_id=None, error="SMTP error: boom")
+    await client.put("/config/smtp", json=SMTP_SETTINGS, headers=bearer())
+    acme = await add_client(client, bearer, "Acme")
+    autumn = await add_campaign(client, bearer, "Jesień")
+    email_id = await add_email(session_factory, autumn, acme, "sent")
+    await client.put(f"/emails/{email_id}", json={"sentAt": sent_at}, headers=bearer())
+    before = await get(client, bearer, f"/emails/{email_id}")
+
+    response = await client.post(f"/emails/{email_id}/resend", headers=bearer())
+
+    assert response.status_code == 200
+    email = response.json()
+    assert set(email) == EMAIL_KEYS
+    assert (email["status"], email["errorMessage"]) == ("failed", "SMTP error: boom")
+    assert email["retryCount"] == before["retryCount"] + 1
+    assert email["sentAt"] == before["sentAt"]
+    assert (sent_at is None) == (email["sentAt"] is None)
+    assert await get(client, bearer, f"/emails/{email_id}") == email
+
+
+async def test_resend_without_smtp_settings_answers_400_and_changes_nothing(
+    client: httpx.AsyncClient,
+    bearer: BearerFactory,
+    session_factory: async_sessionmaker[AsyncSession],
+    senders: FakeSenders,
+) -> None:
+    acme = await add_client(client, bearer, "Acme")
+    autumn = await add_campaign(client, bearer, "Jesień")
+    email_id = await add_email(session_factory, autumn, acme, "failed")
+    before = await get(client, bearer, f"/emails/{email_id}")
+
+    response = await client.post(f"/emails/{email_id}/resend", headers=bearer())
+
+    assert (response.status_code, response.json()) == (400, NO_SMTP)
+    assert (senders.configs, senders.sent) == ([], [])
+    assert await get(client, bearer, f"/emails/{email_id}") == before
+
+
+async def test_resend_of_an_unknown_or_deleted_email_answers_404(
+    client: httpx.AsyncClient,
+    bearer: BearerFactory,
+    session_factory: async_sessionmaker[AsyncSession],
+    senders: FakeSenders,
+) -> None:
+    await client.put("/config/smtp", json=SMTP_SETTINGS, headers=bearer())
+    acme = await add_client(client, bearer, "Acme")
+    autumn = await add_campaign(client, bearer, "Jesień")
+    email_id = await add_email(session_factory, autumn, acme)
+    await client.delete(f"/emails/{email_id}", headers=bearer())
+
+    for unknown in (999999, email_id):
+        response = await client.post(f"/emails/{unknown}/resend", headers=bearer())
+
+        assert (response.status_code, response.json()) == (
+            404,
+            {"detail": f"Email {unknown} not found"},
+        )
+    assert senders.sent == []
+
+
+async def test_resend_sends_the_stored_snapshot_after_the_campaign_changed(
+    client: httpx.AsyncClient,
+    bearer: BearerFactory,
+    session_factory: async_sessionmaker[AsyncSession],
+    senders: FakeSenders,
+) -> None:
+    await client.put("/config/smtp", json=SMTP_SETTINGS, headers=bearer())
+    acme = await add_client(client, bearer, "Acme")
+    autumn = await add_campaign(client, bearer, "Jesień")
+    email_id = await add_email(session_factory, autumn, acme, "failed")
+    changed = {"subject": "Zmieniony", "content": "Inna treść"}
+    assert (await client.put(f"/campaigns/{autumn}", json=changed, headers=bearer())).is_success
+
+    response = await client.post(f"/emails/{email_id}/resend", headers=bearer())
+
+    assert response.status_code == 200
+    assert senders.sent == [("biuro@acme.example", "Nowości", "Dzień dobry")]
+
+
+async def test_resend_leaves_the_campaign_and_its_recipients_unchanged(
+    client: httpx.AsyncClient,
+    bearer: BearerFactory,
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    await client.put("/config/smtp", json=SMTP_SETTINGS, headers=bearer())
+    acme = await add_client(client, bearer, "Acme")
+    beta = await add_client(client, bearer, "Beta")
+    autumn = await add_campaign(client, bearer, "Jesień")
+    recipients = [acme, beta]
+    added = await client.post(f"/campaigns/{autumn}/recipients", json=recipients, headers=bearer())
+    assert added.status_code == 201
+    email_id = await add_email(session_factory, autumn, acme, "failed")
+    other_id = await add_email(session_factory, autumn, beta, "failed")
+    campaign_before = await get(client, bearer, f"/campaigns/{autumn}")
+    other_before = await get(client, bearer, f"/emails/{other_id}")
+
+    response = await client.post(f"/emails/{email_id}/resend", headers=bearer())
+
+    assert response.status_code == 200
+    # The whole campaign: its status, stats and recipients.
+    assert await get(client, bearer, f"/campaigns/{autumn}") == campaign_before
+    assert await get(client, bearer, f"/emails/{other_id}") == other_before
+
+
 @pytest.mark.parametrize(
     "query",
     ["status=unknown", "has_error=maybe", "limit=0"],
@@ -382,6 +561,7 @@ async def test_input_past_the_database_limits_answers_422(
         pytest.param("PUT", "/emails/2147483648", id="update"),
         pytest.param("POST", "/emails/2147483648/mark-opened", id="mark-opened"),
         pytest.param("POST", "/emails/2147483648/mark-clicked", id="mark-clicked"),
+        pytest.param("POST", "/emails/2147483648/resend", id="resend"),
         pytest.param("DELETE", "/emails/2147483648", id="delete"),
     ],
 )

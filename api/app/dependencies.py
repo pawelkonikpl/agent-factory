@@ -116,8 +116,12 @@ def get_campaign_service(session: SessionDep) -> CampaignService:
 CampaignServiceDep = Annotated[CampaignService, Depends(get_campaign_service)]
 
 
-def get_email_service(session: SessionDep) -> EmailService:
-    return EmailService(EmailRepository(session))
+def get_email_service(session: SessionDep, container: ContainerDep) -> EmailService:
+    return EmailService(
+        EmailRepository(session),
+        SmtpConfigService(ConfigRepository(session, container.encryption)),
+        container.email_sender_factory,
+    )
 
 
 EmailServiceDep = Annotated[EmailService, Depends(get_email_service)]

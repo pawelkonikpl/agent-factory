@@ -1,10 +1,12 @@
-"""The email log: reads, filters, stats and manual updates. Nothing here sends email."""
+"""The email log: reads, filters, stats, manual updates and the single-email resend."""
 
 from app.errors import BusinessRuleError, NotFoundError
 from app.models.email import Email, EmailStatus
 from app.repositories.email_repository import EmailRepository
 from app.schemas.base import Page
 from app.schemas.emails import EmailFilters, EmailSchema, EmailStatsSchema, EmailUpdateSchema
+from app.services.smtp_config_service import SmtpConfigService
+from app.services.smtp_sender import EmailSenderFactory
 
 
 def _rate(count: int, total: int) -> float:
@@ -12,8 +14,15 @@ def _rate(count: int, total: int) -> float:
 
 
 class EmailService:
-    def __init__(self, emails: EmailRepository) -> None:
+    def __init__(
+        self,
+        emails: EmailRepository,
+        smtp_configs: SmtpConfigService,
+        sender_factory: EmailSenderFactory,
+    ) -> None:
         self._emails = emails
+        self._smtp_configs = smtp_configs
+        self._sender_factory = sender_factory
 
     async def get_all(self, filters: EmailFilters, skip: int, limit: int) -> Page[EmailSchema]:
         emails = await self._emails.get_all(filters, skip, limit)
@@ -56,6 +65,18 @@ class EmailService:
 
     async def mark_clicked(self, email_id: int) -> Email:
         return await self._emails.mark_clicked(await self.get_by_id(email_id))
+
+    async def resend(self, email_id: int, user_sub: str) -> Email:
+        """Send the stored snapshot once with the user's settings and record the result."""
+        email = await self.get_by_id(email_id)
+        config = await self._smtp_configs.get_smtp_config_for_sending(user_sub)
+        if config is None:
+            raise BusinessRuleError(
+                "SMTP configuration not found. Please configure SMTP settings first."
+            )
+        sender = self._sender_factory(config)
+        result = await sender.send(email.recipient_email, email.subject, email.body)
+        return await self._emails.record_send(email, result)
 
     async def get_stats(self, campaign_id: int | None) -> EmailStatsSchema:
         counts = await self._emails.get_stats(campaign_id)
