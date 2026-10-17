@@ -8,12 +8,16 @@ from sqlalchemy.pool import NullPool
 from app.config import Settings
 from app.database import API_DIR
 from app.main import create_app
+from app.services.encryption import EncryptionService
 from tests.conftest import resolve_test_database_url
+
+ENCRYPTION_KEY = EncryptionService.generate_key()
 
 
 def test_guard_refuses_a_database_without_test_in_its_name() -> None:
     settings = Settings(
-        test_database_url="postgresql+asyncpg://emailsender:emailsender@localhost:5432/emailsender"
+        test_database_url="postgresql+asyncpg://emailsender:emailsender@localhost:5432/emailsender",
+        encryption_key=ENCRYPTION_KEY,
     )
 
     with pytest.raises(RuntimeError):
@@ -24,6 +28,7 @@ def test_guard_derives_the_test_database_from_the_app_database() -> None:
     settings = Settings(
         database_url="postgresql+asyncpg://emailsender:emailsender@db.test:5433/emailsender",
         test_database_url=None,
+        encryption_key=ENCRYPTION_KEY,
     )
 
     assert resolve_test_database_url(settings) == (
@@ -34,7 +39,8 @@ def test_guard_derives_the_test_database_from_the_app_database() -> None:
 async def test_lifespan_migrates_the_database_to_head(
     database_url: str, session_factory: async_sessionmaker[AsyncSession]
 ) -> None:
-    app = create_app(Settings(database_url=database_url), session_factory=session_factory)
+    settings = Settings(database_url=database_url, encryption_key=ENCRYPTION_KEY)
+    app = create_app(settings, session_factory=session_factory)
 
     async with app.router.lifespan_context(app):
         pass

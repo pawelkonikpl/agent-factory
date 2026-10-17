@@ -18,6 +18,7 @@ from sqlalchemy.pool import NullPool
 from app.config import Settings
 from app.database import run_migrations
 from app.main import create_app
+from app.services.encryption import EncryptionService
 
 ISSUER = "https://idp.test/realms/demo"
 AUDIENCE = "demo-api"
@@ -164,7 +165,12 @@ async def app(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> AsyncIterator[FastAPI]:
     """The app the client talks to; a test module may override it to add test-only routes."""
-    settings = Settings(issuer=ISSUER, audience=AUDIENCE, database_url=database_url)
+    settings = Settings(
+        issuer=ISSUER,
+        audience=AUDIENCE,
+        database_url=database_url,
+        encryption_key=EncryptionService.generate_key(),
+    )
     async with httpx.AsyncClient(transport=issuer.transport()) as outbound:
         yield create_app(settings, http_client=outbound, session_factory=session_factory)
 
