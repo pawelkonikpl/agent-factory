@@ -132,7 +132,9 @@ class EmailRepository:
         """Write the given status and every other field of data that is not None."""
         if status is not None:
             email.status = status
-        for name, value in data.model_dump(exclude={"status"}, exclude_none=True).items():
+        # Field names, not the camelCase aliases the schema dumps by default.
+        fields = data.model_dump(by_alias=False, exclude={"status"}, exclude_none=True)
+        for name, value in fields.items():
             setattr(email, name, value)
         await self._session.commit()
         return email
