@@ -499,3 +499,23 @@ async def test_status_is_stored_by_value_and_checked_by_the_database(
         await session.execute(
             text("UPDATE emails SET status = 'bogus' WHERE id = :id"), {"id": email.id}
         )
+
+
+@pytest.mark.parametrize(
+    ("table", "constraint"),
+    [("campaigns", "fk_emails_campaign_id_campaigns"), ("clients", "fk_emails_client_id_clients")],
+)
+async def test_the_database_refuses_to_delete_a_campaign_or_client_with_emails(
+    session: AsyncSession, log: Log, table: str, constraint: str
+) -> None:
+    email_id = (await log.add()).id
+    owner_id = log.autumn.id if table == "campaigns" else log.acme.id
+
+    with pytest.raises(IntegrityError, match=constraint):
+        await session.execute(text(f"DELETE FROM {table} WHERE id = :id"), {"id": owner_id})
+    await session.rollback()
+
+    remaining = await session.scalar(
+        text("SELECT count(*) FROM emails WHERE id = :id"), {"id": email_id}
+    )
+    assert remaining == 1

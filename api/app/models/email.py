@@ -24,11 +24,12 @@ class EmailStatus(enum.StrEnum):
 class Email(IdMixin, TimestampMixin, SoftDeleteMixin, Base):
     __tablename__ = "emails"
 
+    # RESTRICT: the log is never deleted with a campaign or client, which are only soft-deleted.
     campaign_id: Mapped[int] = mapped_column(
-        ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False, index=True
+        ForeignKey("campaigns.id", ondelete="RESTRICT"), nullable=False, index=True
     )
     client_id: Mapped[int] = mapped_column(
-        ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True
+        ForeignKey("clients.id", ondelete="RESTRICT"), nullable=False, index=True
     )
     recipient_email: Mapped[str] = mapped_column(String(256), nullable=False, index=True)
     # The subject and body as sent, not the campaign's current text (D25, W-17).

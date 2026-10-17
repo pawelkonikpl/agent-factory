@@ -62,13 +62,13 @@ def upgrade() -> None:
         ['campaign_id'],
         ['campaigns.id'],
         name=op.f('fk_emails_campaign_id_campaigns'),
-        ondelete='CASCADE',
+        ondelete='RESTRICT',
     ),
     sa.ForeignKeyConstraint(
         ['client_id'],
         ['clients.id'],
         name=op.f('fk_emails_client_id_clients'),
-        ondelete='CASCADE',
+        ondelete='RESTRICT',
     ),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_emails'))
     )
