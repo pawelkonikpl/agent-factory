@@ -20,6 +20,7 @@ from app.config import Settings
 from app.database import create_engine, create_session_factory, run_migrations
 from app.dependencies import build_container
 from app.errors import DomainError, InvalidTokenError, KeySetUnavailableError, NotFoundError
+from app.services.smtp_sender import EmailSenderFactory, SmtpEmailSender
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,7 @@ def create_app(
     http_client: httpx.AsyncClient | None = None,
     clock: Clock = time.monotonic,
     session_factory: async_sessionmaker[AsyncSession] | None = None,
+    email_sender_factory: EmailSenderFactory | None = None,
 ) -> FastAPI:
     settings = settings or Settings()
     http = http_client or httpx.AsyncClient(timeout=settings.http_timeout_seconds)
@@ -56,7 +58,9 @@ def create_app(
             await engine.dispose()
 
     app = FastAPI(title="Demo notes API", lifespan=lifespan)
-    app.state.container = build_container(settings, http, clock, session_factory)
+    app.state.container = build_container(
+        settings, http, clock, session_factory, email_sender_factory or SmtpEmailSender
+    )
     app.include_router(notes.router)
     app.include_router(categories.router)
     app.include_router(clients.router)

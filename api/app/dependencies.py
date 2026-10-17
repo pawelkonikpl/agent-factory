@@ -21,6 +21,7 @@ from app.services.client_service import ClientService
 from app.services.encryption import EncryptionService
 from app.services.note_service import NoteService
 from app.services.smtp_config_service import SmtpConfigService
+from app.services.smtp_sender import EmailSenderFactory
 from app.services.token_verifier import AccessTokenVerifier, Principal
 
 
@@ -30,6 +31,7 @@ class Container:
     notes: NoteService
     sessions: async_sessionmaker[AsyncSession]
     encryption: EncryptionService
+    email_sender_factory: EmailSenderFactory
 
 
 def build_container(
@@ -37,12 +39,14 @@ def build_container(
     http: httpx.AsyncClient,
     clock: Clock,
     sessions: async_sessionmaker[AsyncSession],
+    email_sender_factory: EmailSenderFactory,
 ) -> Container:
     return Container(
         verifier=AccessTokenVerifier(settings, http, clock),
         notes=NoteService(NoteRepository()),
         sessions=sessions,
         encryption=EncryptionService(settings.encryption_key.get_secret_value()),
+        email_sender_factory=email_sender_factory,
     )
 
 
@@ -98,3 +102,10 @@ def get_smtp_config_service(session: SessionDep, container: ContainerDep) -> Smt
 
 
 SmtpConfigServiceDep = Annotated[SmtpConfigService, Depends(get_smtp_config_service)]
+
+
+def get_email_sender_factory(container: ContainerDep) -> EmailSenderFactory:
+    return container.email_sender_factory
+
+
+EmailSenderFactoryDep = Annotated[EmailSenderFactory, Depends(get_email_sender_factory)]
