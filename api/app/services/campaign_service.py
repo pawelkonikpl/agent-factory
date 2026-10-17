@@ -1,4 +1,4 @@
-"""Campaigns are edited only as drafts. Campaigns are global (D5)."""
+"""Campaigns are edited only as drafts, and not deleted while sending. Campaigns are global (D5)."""
 
 from app.errors import BusinessRuleError, NotFoundError
 from app.models.campaign import Campaign, CampaignStatus, RecipientStatus
@@ -12,6 +12,11 @@ from app.schemas.campaigns import (
     CampaignStatsSchema,
     CampaignUpdateSchema,
 )
+
+
+def _refuse_sending(campaign: Campaign) -> None:
+    if campaign.status == CampaignStatus.SENDING:
+        raise BusinessRuleError("Campaign is being sent")
 
 
 def _rate(count: int, total: int) -> float:
@@ -42,6 +47,7 @@ class CampaignService:
 
     async def update(self, campaign_id: int, data: CampaignUpdateSchema) -> Campaign:
         campaign = await self.get_by_id(campaign_id)
+        _refuse_sending(campaign)
         if campaign.status != CampaignStatus.DRAFT:
             raise BusinessRuleError("Only draft campaigns can be modified")
         # Resolved before any write, so unknown clients leave the campaign unchanged.
@@ -63,6 +69,7 @@ class CampaignService:
 
     async def delete(self, campaign_id: int) -> None:
         campaign = await self.get_by_id(campaign_id)
+        _refuse_sending(campaign)
         await self._campaigns.soft_delete(campaign)
 
     async def add_recipients(self, campaign_id: int, client_ids: list[int]) -> Campaign:
