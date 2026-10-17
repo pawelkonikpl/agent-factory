@@ -40,6 +40,30 @@ def _pending(campaign: Campaign) -> list[CampaignRecipient]:
     ]
 
 
+def _chosen(campaign: Campaign, recipient_ids: list[int]) -> list[CampaignRecipient]:
+    """§4 check 2 with recipientIds: each ID a non-deleted recipient of the campaign, and failed.
+
+    Every ID is checked before anything changes; duplicates are dropped.
+    """
+    recipients = {recipient.id: recipient for recipient in _active(campaign)}
+    ids = sorted(set(recipient_ids))
+    missing = [recipient_id for recipient_id in ids if recipient_id not in recipients]
+    if missing:
+        raise BusinessRuleError(f"Recipients not found in campaign: {_join(missing)}")
+    not_failed = [
+        recipient_id
+        for recipient_id in ids
+        if recipients[recipient_id].status != RecipientStatus.FAILED
+    ]
+    if not_failed:
+        raise BusinessRuleError(f"Can only resend failed recipients: {_join(not_failed)}")
+    return [recipients[recipient_id] for recipient_id in ids]
+
+
+def _join(ids: list[int]) -> str:
+    return ", ".join(str(recipient_id) for recipient_id in ids)
+
+
 def _fail(recipient: CampaignRecipient, error: str) -> None:
     recipient.status = RecipientStatus.FAILED
     recipient.error = error
@@ -73,21 +97,26 @@ class CampaignSender:
     async def start(
         self, campaign_id: int, user_sub: str, retry_recipient_ids: list[int] | None = None
     ) -> tuple[Campaign, SmtpConfig]:
-        """§4 checks 1 to 4, then step 5. retry_recipient_ids is for the resend (API-12)."""
+        """§4 checks 1 to 4, then step 5. retry_recipient_ids are the resend's chosen IDs."""
         campaign = await self._campaigns.get_by_id(campaign_id)
         if campaign is None:
             raise NotFoundError(f"Campaign {campaign_id} not found")
         if campaign.status not in (CampaignStatus.DRAFT, CampaignStatus.FAILED):
             raise _not_sendable(campaign.status)
         if campaign.status == CampaignStatus.DRAFT:
+            if retry_recipient_ids is not None:
+                raise BusinessRuleError("Only failed campaigns can be resent")
             chosen = _pending(campaign)
             reset = []
         else:
-            chosen = [
-                recipient
-                for recipient in _active(campaign)
-                if recipient.status == RecipientStatus.FAILED
-            ]
+            if retry_recipient_ids is None:
+                chosen = [
+                    recipient
+                    for recipient in _active(campaign)
+                    if recipient.status == RecipientStatus.FAILED
+                ]
+            else:
+                chosen = _chosen(campaign, retry_recipient_ids)
             reset = chosen
         if not chosen:
             raise BusinessRuleError("Campaign has no pending recipients")
