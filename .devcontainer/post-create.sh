@@ -10,4 +10,4 @@ for dir in bff api; do
   (cd "$dir" && uv sync --frozen)
 done
 
-(cd web && npm ci)
+(cd web && bun install --frozen-lockfile)

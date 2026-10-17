@@ -1,9 +1,10 @@
 # Dev container image (devcontainer.json). Development only.
 # The base image brings Python 3.12, git, make, curl and the non-root vscode user;
-# devcontainer.json adds Node 22 as a feature.
+# this file adds uv and bun, and devcontainer.json adds Node 22 as a feature.
 FROM mcr.microsoft.com/devcontainers/python:1-3.12-bookworm
 
 COPY --from=ghcr.io/astral-sh/uv:0.9.10 /uv /bin/uv
+COPY --from=docker.io/oven/bun:1.4.3 /usr/local/bin/bun /usr/local/bin/bun
 
 # Use the image's Python and never download one; copy into .venv, since the uv cache
 # and the bind-mounted checkout are on different filesystems.
