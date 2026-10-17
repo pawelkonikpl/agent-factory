@@ -14,13 +14,22 @@ from app.models.client import Client
 from app.models.email import Email, EmailStatus
 from app.repositories.campaign_repository import CampaignRepository
 from app.repositories.client_repository import ClientRepository
+from app.repositories.config_repository import ConfigRepository
 from app.repositories.email_repository import EmailRepository
 from app.schemas.campaigns import CampaignCreateSchema, CampaignUpdateSchema
 from app.schemas.clients import ClientCreateSchema
 from app.schemas.emails import EmailFilters, EmailStatsSchema, EmailUpdateSchema
+from app.schemas.smtp_config import SmtpConfigUpdateSchema
 from app.services.campaign_service import CampaignService
 from app.services.client_service import ClientService
 from app.services.email_service import EmailService
+from app.services.encryption import EncryptionService
+from app.services.smtp_config_service import SmtpConfigService
+from app.services.smtp_sender import SendResult
+from tests.conftest import FakeSenders
+
+USER = "alice"
+NO_SMTP = "SMTP configuration not found. Please configure SMTP settings first."
 
 
 @pytest.fixture
@@ -37,8 +46,26 @@ def repository(session: AsyncSession) -> EmailRepository:
 
 
 @pytest.fixture
-def service(repository: EmailRepository) -> EmailService:
-    return EmailService(repository)
+def senders() -> FakeSenders:
+    return FakeSenders()
+
+
+@pytest.fixture
+async def smtp_configs(session: AsyncSession) -> SmtpConfigService:
+    """SMTP settings saved for USER, none for anyone else."""
+    configs = SmtpConfigService(
+        ConfigRepository(session, EncryptionService(EncryptionService.generate_key()))
+    )
+    settings = {"smtp_server": "smtp.example.com", "smtp_port": 587, "smtp_use_tls": True}
+    await configs.update_smtp_config(USER, SmtpConfigUpdateSchema.model_validate(settings))
+    return configs
+
+
+@pytest.fixture
+def service(
+    repository: EmailRepository, smtp_configs: SmtpConfigService, senders: FakeSenders
+) -> EmailService:
+    return EmailService(repository, smtp_configs, senders)
 
 
 @pytest.fixture
@@ -382,6 +409,99 @@ async def test_schema_reads_the_snapshot_not_the_campaigns_current_text(
     schema = service.to_schema(await reload(service, session, email.id))
 
     assert (schema.subject, schema.content) == ("Nowości", "Dzień dobry")
+
+
+async def test_resend_success_marks_the_email_sent_and_counts_the_retry(
+    service: EmailService, senders: FakeSenders, session: AsyncSession, log: Log
+) -> None:
+    email = await log.add(status=EmailStatus.FAILED, error_message="SMTP error: earlier")
+
+    await service.resend(email.id, USER)
+
+    stored = await reload(service, session, email.id)
+    assert stored.status == EmailStatus.SENT
+    assert stored.sent_at is not None
+    assert (stored.smtp_message_id, stored.error_message) == ("<1@test>", None)
+    assert stored.retry_count == 1
+    assert senders.sent == [("biuro@acme.example", "Nowości", "Dzień dobry")]
+    assert [(c.smtp_server, c.smtp_port) for c in senders.configs] == [("smtp.example.com", 587)]
+
+
+@pytest.mark.parametrize("sent_at", [None, at(1)], ids=["never-sent", "sent-before"])
+async def test_resend_failure_marks_the_email_failed_and_keeps_sent_at(
+    service: EmailService,
+    senders: FakeSenders,
+    session: AsyncSession,
+    log: Log,
+    sent_at: datetime | None,
+) -> None:
+    senders.result = SendResult(success=False, smtp_message_id=None, error="SMTP error: boom")
+    email = await log.add(status=EmailStatus.SENT, sent_at=sent_at, smtp_message_id="<0@test>")
+
+    await service.resend(email.id, USER)
+
+    stored = await reload(service, session, email.id)
+    assert stored.status == EmailStatus.FAILED
+    assert stored.sent_at == sent_at
+    assert (stored.smtp_message_id, stored.error_message) == (None, "SMTP error: boom")
+    assert stored.retry_count == 1
+
+
+async def test_resend_without_smtp_settings_is_rejected_and_sends_nothing(
+    service: EmailService, senders: FakeSenders, session: AsyncSession, log: Log
+) -> None:
+    email = await log.add(status=EmailStatus.FAILED, error_message="SMTP error: earlier")
+    before = service.to_schema(await reload(service, session, email.id))
+
+    with pytest.raises(BusinessRuleError) as error:
+        await service.resend(email.id, "bob")
+
+    assert str(error.value) == NO_SMTP
+    assert (senders.configs, senders.sent) == ([], [])
+    assert service.to_schema(await reload(service, session, email.id)) == before
+
+
+async def test_resend_of_an_unknown_or_deleted_email_is_not_found(
+    service: EmailService, senders: FakeSenders, log: Log
+) -> None:
+    email = await log.add()
+    await service.delete(email.id)
+    unknown = email.id + 1000
+
+    for email_id in (unknown, email.id):
+        with pytest.raises(NotFoundError) as error:
+            await service.resend(email_id, USER)
+        assert str(error.value) == f"Email {email_id} not found"
+    assert senders.sent == []
+
+
+async def test_resend_sends_the_snapshot_not_the_campaigns_current_text(
+    service: EmailService, campaigns: CampaignService, senders: FakeSenders, log: Log
+) -> None:
+    email = await log.add(subject="Nowości")
+    changed = CampaignUpdateSchema.model_validate({"subject": "Zmieniony", "content": "Inna"})
+    await campaigns.update(log.autumn.id, changed)
+
+    await service.resend(email.id, USER)
+
+    assert senders.sent == [("biuro@acme.example", "Nowości", "Dzień dobry")]
+
+
+async def test_resend_leaves_the_campaign_its_recipients_and_other_emails_unchanged(
+    service: EmailService, campaigns: CampaignService, session: AsyncSession, log: Log
+) -> None:
+    await campaigns.add_recipients(log.autumn.id, [log.acme.id, log.beta.id])
+    email = await log.add(status=EmailStatus.FAILED)
+    other = await log.add(client=log.beta, status=EmailStatus.FAILED)
+    session.expunge_all()
+    campaign_before = campaigns.to_schema(await campaigns.get_by_id(log.autumn.id))
+    other_before = service.to_schema(await service.get_by_id(other.id))
+
+    await service.resend(email.id, USER)
+
+    session.expunge_all()
+    assert campaigns.to_schema(await campaigns.get_by_id(log.autumn.id)) == campaign_before
+    assert service.to_schema(await service.get_by_id(other.id)) == other_before
 
 
 async def add_stats_rows(log: Log) -> None:

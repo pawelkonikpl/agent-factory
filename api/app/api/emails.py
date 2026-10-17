@@ -78,6 +78,13 @@ async def mark_email_clicked(
     return service.to_schema(await service.mark_clicked(email_id))
 
 
+@router.post("/{email_id}/resend", response_model=EmailSchema)
+async def resend_email(
+    email_id: DbInt, principal: PrincipalDep, service: EmailServiceDep
+) -> EmailSchema:
+    return service.to_schema(await service.resend(email_id, principal.subject))
+
+
 @router.delete("/{email_id}", response_model=MessageSchema)
 async def delete_email(
     email_id: DbInt, principal: PrincipalDep, service: EmailServiceDep

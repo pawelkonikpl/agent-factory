@@ -10,6 +10,7 @@ from app.models.campaign import Campaign
 from app.models.client import Client
 from app.models.email import Email, EmailStatus
 from app.schemas.emails import EmailFilters, EmailUpdateSchema
+from app.services.smtp_sender import SendResult
 
 
 @dataclass(frozen=True)
@@ -152,6 +153,19 @@ class EmailRepository:
 
     async def mark_clicked(self, email: Email) -> Email:
         email.clicked_at = utc_now()
+        await self._session.commit()
+        return email
+
+    async def record_send(self, email: Email, result: SendResult) -> Email:
+        """Write a send's outcome; sent_at only moves on success."""
+        if result.success:
+            email.status = EmailStatus.SENT
+            email.sent_at = utc_now()
+        else:
+            email.status = EmailStatus.FAILED
+        email.smtp_message_id = result.smtp_message_id
+        email.error_message = None if result.success else result.error
+        email.retry_count += 1
         await self._session.commit()
         return email
 
